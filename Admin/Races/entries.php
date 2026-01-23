@@ -40,7 +40,7 @@ if (isset($_POST['add_entry'])) {
 <html>
 <head>
     <title>Add Pigeons to Race</title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/Css/style.css">
     <script src="../../assets/js/script.js" defer></script>
 </head>
 <body>

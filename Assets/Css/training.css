@@ -1,0 +1,108 @@
+/* Assets/Css/style.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+:root {
+    --primary-gradient: linear-gradient(45deg, #00dbde 0%, #fc00ff 100%);
+    --bg-color: #f4f7f6;
+    --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-color);
+    margin: 0;
+    display: flex; /* Supports Sidebar + Main Content layout */
+}
+
+/* Main Content Wrapper - Pushes content to the right of the sidebar */
+.main-content {
+    flex: 1;
+    margin-left: 250px; /* Must match the width of your sidebar */
+    padding: 40px;
+    min-height: 100vh;
+}
+
+/* Card Container for Forms and Tables */
+.card {
+    background: #fff;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 30px;
+}
+
+h2, h3 {
+    color: #333;
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Form Styling */
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+select, input[type="number"], input[type="date"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    box-sizing: border-box;
+    transition: 0.3s;
+}
+
+select:focus, input:focus {
+    border-color: #fc00ff;
+    outline: none;
+    box-shadow: 0 0 8px rgba(252, 0, 255, 0.1);
+}
+
+/* Primary Action Button */
+.btn-primary {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    transition: 0.3s;
+    text-transform: uppercase;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(252, 0, 255, 0.3);
+}
+
+/* History Table Styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: left;
+    padding: 12px;
+    background-color: #f8f9fa;
+    color: #8a6b49; /* Matching your dashboard's accent color */
+    border-bottom: 2px solid #eee;
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    color: #444;
+}

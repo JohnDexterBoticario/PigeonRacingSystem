@@ -1,0 +1,93 @@
+/* Assets/Css/pigeons.css */
+body {
+    background: linear-gradient(45deg, #00dbde 0%, #fc00ff 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+}
+
+.pigeon-card {
+    background: #fff;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 600px;
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input-group input, 
+.input-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+.input-group input:focus, 
+.input-group select:focus {
+    border-color: #fc00ff;
+    outline: none;
+    box-shadow: 0 0 5px rgba(252, 0, 255, 0.2);
+}
+
+.save-btn {
+    grid-column: span 2; /* Spans across both columns */
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(to right, #00dbde, #fc00ff);
+    border: none;
+    border-radius: 25px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: 0.5s;
+    margin-top: 10px;
+}
+
+.save-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+}
+
+/* Responsive for small screens */
+@media (max-width: 480px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    .save-btn {
+        grid-column: span 1;
+    }
+}

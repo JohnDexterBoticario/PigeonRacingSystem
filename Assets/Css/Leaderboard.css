@@ -1,0 +1,16 @@
+/* Leaderboard Visuals */
+.top-three {
+    background-color: #fff9c4 !important; /* Gold highlight for winners */
+}
+
+.rank-1 { color: #d4af37; font-size: 1.2em; } /* Gold */
+.rank-2 { color: #aaa9ad; font-size: 1.1em; } /* Silver */
+.rank-3 { color: #cd7f32; font-size: 1.1em; } /* Bronze */
+
+.speed-badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+}
