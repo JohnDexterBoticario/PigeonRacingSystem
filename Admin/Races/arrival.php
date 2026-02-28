@@ -1,6 +1,5 @@
 <?php
 session_start();
-// Absolute path to prevent 404/stream errors
 require_once "../../Config/database.php"; 
 
 // 1. Admin Security Check
@@ -40,52 +39,54 @@ if (isset($_POST['save_arrivals'])) {
     $arrival_times = $_POST['arrival_time']; 
     $sticker_codes = $_POST['sticker_code'];
 
-    // Fetch Release Time
-    $r_stmt = $conn->prepare("SELECT release_time FROM races WHERE id=?");
+    // FIXED: Changed release_time to release_datetime to match image_434d8d.png
+    $r_stmt = $conn->prepare("SELECT release_datetime FROM races WHERE id=?");
     $r_stmt->bind_param("i", $race_id);
     $r_stmt->execute();
-    $race_start = $r_stmt->get_result()->fetch_assoc()['release_time'];
+    $race_start = $r_stmt->get_result()->fetch_assoc()['release_datetime'];
 
     foreach ($arrival_times as $entry_id => $arrival_time) {
-        if (empty($arrival_time)) continue; // Skip birds not arrived
+        if (empty($arrival_time)) continue; 
 
+        // Fetch bird details from entries
         $stmt2 = $conn->prepare("SELECT distance_km, pigeon_id FROM race_entries WHERE id=?");
         $stmt2->bind_param("i", $entry_id);
         $stmt2->execute();
         $row = $stmt2->get_result()->fetch_assoc();
         
-        $distance_km = $row['distance_km'];
+        $distance_km = $row['distance_km'] ?? 0;
         $pigeon_id = $row['pigeon_id'];
         $s_code = $sticker_codes[$entry_id] ?? null;
 
-        // Calculate Speed
-        $minutes = (strtotime($arrival_time) - strtotime($race_start)) / 60;
-        $speed = ($distance_km * 1000) / max($minutes, 1);
+        // Calculate Speed (Distance in Meters / Minutes)
+        $diff_seconds = strtotime($arrival_time) - strtotime($race_start);
+        $minutes = $diff_seconds / 60;
+        
+        // Prevent division by zero if arrival equals release
+        $speed = ($distance_km * 1000) / max($minutes, 0.001);
 
-        // Update Pigeon with Sticker Code
-        $upd_pigeon = $conn->prepare("UPDATE pigeons SET sticker_code = ? WHERE id = ?");
-        $upd_pigeon->bind_param("si", $s_code, $pigeon_id);
-        $upd_pigeon->execute();
-
-        // Save Result
+        // Save Result (ON DUPLICATE KEY ensures we don't double-record)
         $stmt3 = $conn->prepare("
             INSERT INTO race_results (race_id, pigeon_id, arrival_time, speed_mpm, distance_km)
             VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE arrival_time=VALUES(arrival_time), speed_mpm=VALUES(speed_mpm)
+            ON DUPLICATE KEY UPDATE 
+                arrival_time = VALUES(arrival_time), 
+                speed_mpm = VALUES(speed_mpm), 
+                distance_km = VALUES(distance_km)
         ");
         $stmt3->bind_param("iisdd", $race_id, $pigeon_id, $arrival_time, $speed, $distance_km);
         $stmt3->execute();
     }
-    $success_msg = "Manual arrivals and sticker codes saved!";
+    $success_msg = "Arrivals saved and speeds calculated!";
 }
 
 // 4. Load Active Races & Entries
 $active_races = $conn->query("SELECT id, race_name FROM races WHERE status='Released'")->fetch_all(MYSQLI_ASSOC);
 $entries = [];
-if (isset($_POST['load_race'])) {
+if (isset($_POST['load_race']) || isset($_POST['save_arrivals'])) {
     $race_id = $_POST['race_id'];
     $stmt = $conn->prepare("
-        SELECT re.id, p.ring_number, p.sticker_code, re.distance_km 
+        SELECT re.id, p.ring_number, re.sticker_code, re.distance_km 
         FROM race_entries re 
         JOIN pigeons p ON re.pigeon_id = p.id 
         WHERE re.race_id = ?
@@ -151,11 +152,12 @@ include "../../Includes/sidebar.php";
                     <tr>
                         <td><strong><?= htmlspecialchars($e['ring_number']) ?></strong></td>
                         <td>
-                            <input type="text" name="sticker_code[<?= $e['id'] ?>]" value="<?= htmlspecialchars($e['sticker_code'] ?? '') ?>" class="input-field" placeholder="Sticker #">
+                            <input type="text" value="<?= htmlspecialchars($e['sticker_code'] ?? '') ?>" class="input-field" readonly style="background: #f9f9f9;">
+                            <input type="hidden" name="sticker_code[<?= $e['id'] ?>]" value="<?= htmlspecialchars($e['sticker_code'] ?? '') ?>">
                         </td>
                         <td><?= number_format($e['distance_km'], 3) ?> km</td>
                         <td>
-                            <input type="datetime-local" name="arrival_time[<?= $e['id'] ?>]" class="input-field">
+                            <input type="datetime-local" name="arrival_time[<?= $e['id'] ?>]" class="input-field" required>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -164,7 +166,7 @@ include "../../Includes/sidebar.php";
             
             <div class="action-btns">
                 <button type="submit" name="save_arrivals" style="flex: 2; background: #8a6b49; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">SAVE ARRIVALS</button>
-                <button type="submit" name="finish_race" onclick="return confirm('Complete race and move to history?')" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">FINISH RACE</button>
+                <button type="submit" name="finish_race" onclick="return confirm('Rank birds and mark race as Completed?')" style="flex: 1; background: #2c3e50; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer;">FINISH & RANK</button>
             </div>
         </form>
         <?php endif; ?>

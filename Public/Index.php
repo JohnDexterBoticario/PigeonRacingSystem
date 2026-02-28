@@ -2,10 +2,11 @@
 session_start();
 require_once "../Config/database.php";
 
-// If already logged in, redirect to the correct dashboard automatically
+// If already logged in, redirect to the central dashboards
 if (isset($_SESSION['role'])) {
     if ($_SESSION['role'] === 'admin') {
-        header("Location: ../Admin/Races/create.php");
+        // Updated redirect to the new Dashboard
+        header("Location: ../Admin/Dashboard.php"); 
         exit();
     } else if ($_SESSION['role'] === 'member') {
         header("Location: ../Member/Dashboard.php");

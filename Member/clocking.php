@@ -1,6 +1,24 @@
 <?php
 session_start();
+// 1. Force local timezone to prevent "clocked before release" errors
+date_default_timezone_set('Asia/Manila'); 
 require_once "../Config/database.php";
+
+/**
+ * Haversine Formula: Calculates distance between coordinates in KM
+ */
+function calculateHaversineDistance($lat1, $lon1, $lat2, $lon2) {
+    $earthRadius = 6371; 
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLon = deg2rad($lon2 - $lon1);
+
+    $a = sin($dLat / 2) * sin($dLat / 2) +
+         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+         sin($dLon / 2) * sin($dLon / 2);
+    
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+    return $earthRadius * $c;
+}
 
 // 2. Security Check
 if (!isset($_SESSION['user_id'])) {
@@ -14,40 +32,34 @@ $success_msg = "";
 $error_msg = "";
 $sms_data = null;
 
-// 3. Determine Selected Race for Stats
+// 3. Stats Logic
 $stats_race_id = $_GET['race_id'] ?? null;
 $my_pooling_count = 0;
 $total_birds_clocked = 0;
 
 if ($stats_race_id) {
-    // Count user's birds in this race
-    $count_stmt = $conn->prepare("
-        SELECT COUNT(*) as total 
-        FROM race_entries re
-        JOIN pigeons p ON re.pigeon_id = p.id
-        JOIN members m ON p.member_id = m.id
-        WHERE re.race_id = ? AND m.user_id = ?
-    ");
+    $count_stmt = $conn->prepare("SELECT COUNT(*) as total FROM race_entries re JOIN pigeons p ON re.pigeon_id = p.id JOIN members m ON p.member_id = m.id WHERE re.race_id = ? AND m.user_id = ?");
     $count_stmt->bind_param("ii", $stats_race_id, $user_id);
     $count_stmt->execute();
     $my_pooling_count = $count_stmt->get_result()->fetch_assoc()['total'] ?? 0;
 
-    // Count total birds clocked globally
     $clocked_stmt = $conn->prepare("SELECT COUNT(*) as total FROM race_results WHERE race_id = ?");
     $clocked_stmt->bind_param("i", $stats_race_id);
     $clocked_stmt->execute();
     $total_birds_clocked = $clocked_stmt->get_result()->fetch_assoc()['total'] ?? 0;
 }
 
-// 4. Handle Clocking Logic
+// 4. Clocking Submission Handler
 if (isset($_POST['clock_bird'])) {
     $race_id = $_POST['race_id'];
     $identifier = trim($_POST['identifier']);
     $arrival_time = date('Y-m-d H:i:s'); 
 
     $stmt = $conn->prepare("
-        SELECT re.pigeon_id, r.release_lat, r.release_lng, r.release_datetime, r.race_name, 
-               p.ring_number, p.category, m.loft_latitude, m.loft_longitude
+        SELECT re.pigeon_id, r.release_datetime as release_datetime, r.race_name, 
+               r.lat_release, r.long_release, 
+               p.ring_number, p.category, 
+               m.latitude as loft_lat, m.longitude as loft_long
         FROM race_entries re
         JOIN pigeons p ON re.pigeon_id = p.id
         JOIN members m ON p.member_id = m.id
@@ -59,60 +71,56 @@ if (isset($_POST['clock_bird'])) {
     $data = $stmt->get_result()->fetch_assoc();
 
     if ($data) {
-        // Calculate Distance
-        $dist = calculateDistance(
-            $data['release_lat'], 
-            $data['release_lng'], 
-            $data['loft_latitude'], 
-            $data['loft_longitude']
-        );
-        
-        // Calculate Speed (Meters Per Minute)
-        $release_time = strtotime($data['release_datetime']);
-        $clock_time = strtotime($arrival_time);
-        
-        // Calculate the difference in seconds
-        $diff_seconds = $clock_time - $release_time;
-
-        if ($diff_seconds <= 0) {
-            // Bird clocked before or at release time
-            $speed = 0;
-            $error_msg = "Error: Bird clocked before race release time!";
+        // Check if coordinates exist
+        if (empty($data['loft_lat']) || empty($data['loft_long'])) {
+            $error_msg = "Error: Your loft coordinates are not set in your profile!";
         } else {
-            $diff_minutes = $diff_seconds / 60;
-            $speed = ($dist * 1000) / $diff_minutes;
+            $dist = calculateHaversineDistance(
+                $data['lat_release'], $data['long_release'],
+                $data['loft_lat'], $data['loft_long']
+            );
             
-            // Safety cap: If speed is over 3000 MPM, something is likely wrong with coordinates
-            if ($speed > 3000) {
-                $speed = 0; 
-                $error_msg = "Warning: Speed calculated is unrealistic. Please check loft coordinates.";
-            }
-        }
+            $release_time = strtotime($data['release_datetime']);
+            $clock_time = strtotime($arrival_time);
+            $diff_seconds = $clock_time - $release_time;
 
-        if (empty($error_msg)) {
-            // Save to race_results
-            $save = $conn->prepare("
-                INSERT INTO race_results (race_id, pigeon_id, arrival_time, speed_mpm, distance_km) 
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE arrival_time=VALUES(arrival_time), speed_mpm=VALUES(speed_mpm), distance_km=VALUES(distance_km)
-            ");
-            $save->bind_param("iisdd", $race_id, $data['pigeon_id'], $arrival_time, $speed, $dist);
-            
-            if ($save->execute()) {
-                $success_msg = "Successfully Clocked: " . $data['ring_number'];
-                $sms_data = [
-                    'ring' => $data['ring_number'], 
-                    'race' => $data['race_name'], 
-                    'time' => date('H:i:s'), 
-                    'speed' => number_format($speed, 2)
-                ];
+            if ($diff_seconds <= 0) {
+                $error_msg = "Error: Bird clocked before race release time! Release: " . date('h:i:s A', $release_time);
+            } else {
+                $diff_minutes = $diff_seconds / 60;
+                $speed = ($dist * 1000) / $diff_minutes;
+                
+                // ADJUSTED: Show the actual calculated speed in the error to help you debug
+                if ($speed > 2500) { 
+                    $error_msg = "Unrealistic Speed: " . number_format($speed, 2) . " MPM. <br>" . 
+                                 "Dist: " . number_format($dist, 3) . "km | Time: " . round($diff_minutes, 2) . " min. <br>" .
+                                 "Check your Loft Coordinates or Race Release Time.";
+                } else {
+                    $save = $conn->prepare("
+                        INSERT INTO race_results (race_id, pigeon_id, arrival_time, speed_mpm, distance_km) 
+                        VALUES (?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE arrival_time=VALUES(arrival_time), speed_mpm=VALUES(speed_mpm), distance_km=VALUES(distance_km)
+                    ");
+                    $save->bind_param("iisdd", $race_id, $data['pigeon_id'], $arrival_time, $speed, $dist);
+                    
+                    if ($save->execute()) {
+                        $success_msg = "Successfully Clocked: " . $data['ring_number'] . " at " . number_format($speed, 2) . " MPM";
+                        $sms_data = [
+                            'ring' => $data['ring_number'], 
+                            'race' => $data['race_name'], 
+                            'time' => date('H:i:s'), 
+                            'speed' => number_format($speed, 2)
+                        ];
+                    }
+                }
             }
         }
     } else {
-        $error_msg = "Identifier invalid or bird not registered for this race.";
+        $error_msg = "Invalid Identifier or bird not registered for this race.";
     }
 }
-// 5. Fetch Recent Clocks for the Member
+
+// 5. Recent Results Fetch
 $my_results = $conn->prepare("
     SELECT p.ring_number, p.category, res.arrival_time, res.speed_mpm, res.distance_km
     FROM race_results res
@@ -190,7 +198,8 @@ include "../Includes/sidebar.php";
                     <select name="race_id" required onchange="window.location.href='?race_id=' + this.value" style="padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
                         <option value="">-- Select Active Race --</option>
                         <?php 
-                        $active = $conn->query("SELECT id, race_name FROM races WHERE status = 'Released'");
+                        // This will show all races, prioritizing the most recent ones
+                        $active = $conn->query("SELECT id, race_name FROM races ORDER BY id DESC"); 
                         while($r = $active->fetch_assoc()): ?>
                             <option value="<?= $r['id'] ?>" <?= ($stats_race_id == $r['id']) ? 'selected' : '' ?>><?= htmlspecialchars($r['race_name']) ?></option>
                         <?php endwhile; ?>

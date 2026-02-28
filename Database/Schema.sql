@@ -48,7 +48,7 @@ CREATE TABLE races (
     release_lat DECIMAL(10,6) NOT NULL,
     release_lng DECIMAL(10,6) NOT NULL,
     release_datetime DATETIME NOT NULL,
-    status ENUM('Pending','Released','Completed') DEFAULT 'Pending'
+    status ENUM('Pending','Released','Completed') DEFAULT 'N/A'
 );
 
 -- RACE ENTRIES

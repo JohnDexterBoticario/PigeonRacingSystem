@@ -1,0 +1,16 @@
+.forecast-card {
+    background: #ffffff;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.forecast-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 2rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-family: 'Courier New', Courier, monospace; /* For that 'receipt' look */
+    font-weight: bold;
+}

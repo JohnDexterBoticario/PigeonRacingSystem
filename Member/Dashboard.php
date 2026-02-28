@@ -13,6 +13,7 @@ include "../Includes/sidebar.php";
 $user_id = $_SESSION['user_id'];
 
 // 2. Fetch Member Details
+// We need the member_id to filter pigeons and race results correctly
 $member_query = $conn->prepare("SELECT id, loft_name FROM members WHERE user_id = ?");
 $member_query->bind_param("i", $user_id);
 $member_query->execute();
@@ -22,7 +23,9 @@ $member_id = $member['id'] ?? 0;
 $loft_name = $member['loft_name'] ?? "Not Set";
 
 // 3. Fetch Pigeons owned by this member
-$pigeons_result = $conn->prepare("SELECT ring_number, year, color, gender FROM pigeons WHERE member_id = ?");
+// FIXED: Using placeholders for missing columns (year, color, gender) to avoid SQL errors
+// Now pulling the real 'year' column from your database
+$pigeons_result = $conn->prepare("SELECT ring_number, year, 'N/A' as color, 'N/A' as gender FROM pigeons WHERE member_id = ?");
 $pigeons_result->bind_param("i", $member_id);
 $pigeons_result->execute();
 $pigeons = $pigeons_result->get_result();
@@ -47,7 +50,6 @@ $live_results = null;
 
 if ($active_race) {
     $race_id = $active_race['id'];
-    // Fetch top 5 recent arrivals from ANY member for this race
     $live_results = $conn->query("
         SELECT p.ring_number, m.loft_name, res.arrival_time, res.speed_mpm
         FROM race_results res
@@ -76,7 +78,6 @@ if ($active_race) {
         td { padding: 12px; border-bottom: 1px solid #eee; color: #555; }
         .welcome-header { margin-bottom: 30px; color: white; }
         .rank-badge { background: #8a6b49; color: white; padding: 4px 10px; border-radius: 10px; font-weight: bold; }
-        /* Live Indicator Style */
         .live-tag { background: #ff0000; color: white; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: bold; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
@@ -100,12 +101,7 @@ if ($active_race) {
         </div>
         <table>
             <thead>
-                <tr>
-                    <th>Loft Name</th>
-                    <th>Ring Number</th>
-                    <th>Time</th>
-                    <th>Speed (MPM)</th>
-                </tr>
+                <tr><th>Loft Name</th><th>Ring Number</th><th>Time</th><th>Speed (MPM)</th></tr>
             </thead>
             <tbody>
                 <?php while($row = $live_results->fetch_assoc()): ?>
