@@ -6,7 +6,7 @@ require_once "../Config/database.php";
 if (isset($_SESSION['role'])) {
     if ($_SESSION['role'] === 'admin') {
         // Updated redirect to the new Dashboard
-        header("Location: ../Admin/Dashboard.php"); 
+        header("Location: ../Admin/AdminDashboard.php"); 
         exit();
     } else if ($_SESSION['role'] === 'member') {
         header("Location: ../Member/Dashboard.php");

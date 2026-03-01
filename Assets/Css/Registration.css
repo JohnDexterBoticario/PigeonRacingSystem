@@ -1,0 +1,147 @@
+/* Layout Container: Ensures content doesn't hide under the sidebar */
+.main-content {
+    margin-left: 260px; /* Width of your sidebar */
+    width: calc(100% - 260px); 
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f4f7f6;
+    padding: 40px 20px;
+    box-sizing: border-box; /* Crucial for preventing overflow */
+    transition: all 0.3s ease;
+}
+
+/* Registration Wrapper */
+.auth-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* The Card */
+.auth-card {
+    background: white;
+    padding: 35px;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 550px;
+}
+
+.auth-card h2 {
+    margin-bottom: 25px;
+    color: #2c3e50;
+    font-size: 24px;
+    text-align: center;
+    font-weight: 700;
+}
+
+/* Form Groups */
+.input-group {
+    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column; /* Ensures label stays on top */
+}
+
+.input-group label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 5px;
+    color: #34495e;
+    font-weight: 600;
+    text-align: left;
+}
+
+.input-with-icon {
+    position: relative;
+    width: 100%;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #bdc3c7;
+    font-size: 14px;
+    z-index: 5;
+}
+
+/* Fix for inputs inside Bootstrap rows */
+.input-with-icon input, 
+.input-with-icon select,
+.input-group input.form-control {
+    width: 100% !important;
+    padding: 12px 15px 12px 45px !important; /* Extra left padding for icon */
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s;
+    background-color: #fff;
+    box-sizing: border-box;
+}
+
+/* Special padding for Lat/Long which have no icons in your HTML */
+#lat, #lng {
+    padding: 12px 15px !important;
+}
+
+.input-with-icon input:focus,
+.input-with-icon select:focus,
+.input-group input.form-control:focus {
+    border-color: #8a6b49;
+    box-shadow: 0 0 0 3px rgba(138, 107, 73, 0.1);
+    outline: none;
+}
+
+/* Buttons */
+.geo-btn {
+    width: 100%;
+    background: #fff;
+    border: 2px dashed #8a6b49;
+    padding: 12px;
+    margin: 10px 0 20px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #8a6b49;
+    font-weight: 700;
+    transition: 0.3s;
+}
+
+.geo-btn:hover {
+    background: #8a6b49;
+    color: white;
+}
+
+.auth-btn {
+    width: 100%;
+    padding: 15px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.login-link {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.login-link a {
+    color: #7f8c8d;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+/* Responsive Fix */
+@media (max-width: 992px) {
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+}

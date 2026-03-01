@@ -1,107 +1,106 @@
 <?php
 /**
- * Pigeon & Race Entry Management - Pigeon Racing System
- * This file handles:
- * 1. Registering a new pigeon to a member (pigeons table)
- * 2. Assigning pigeons to a specific race (race_entries table)
+ * Pigeon & Race Entry Management - Optimized
  */
 session_start();
 
-// Enable strict error reporting for debugging
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-
-// Database configuration - FIXED PATH: Going up two levels to reach root
-require_once "../../Config/database.php"; 
-
+// 1. SECURITY: Role Check & CSRF Token Generation
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../../Auth/login.php");
     exit();
 }
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+require_once "../../Config/database.php"; 
+
 $success_msg = "";
 $error_msg = "";
 
-// --- 1. HANDLE NEW PIGEON REGISTRATION ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_pigeon'])) {
-    $member_id = $_POST['member_id'] ?? null;
-    $year = htmlspecialchars(trim($_POST['year'] ?? ''));
-    $ring_number = htmlspecialchars(trim($_POST['ring_number'] ?? ''));
+/**
+ * 2. ACTION HANDLERS
+ */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // CSRF Validation
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("CSRF token validation failed.");
+    }
 
-    if (empty($member_id) || empty($year) || empty($ring_number)) {
-        $error_msg = "All fields are required for pigeon registration.";
-    } else {
-        try {
-            $check_stmt = $conn->prepare("SELECT id FROM pigeons WHERE ring_number = ?");
-            $check_stmt->bind_param("s", $ring_number);
-            $check_stmt->execute();
-            if ($check_stmt->get_result()->num_rows > 0) {
-                $error_msg = "Error: Ring number already registered.";
-            } else {
+    // --- HANDLE NEW PIGEON REGISTRATION ---
+    if (isset($_POST['register_pigeon'])) {
+        $member_id = $_POST['member_id'] ?? null;
+        $year = filter_input(INPUT_POST, 'year', FILTER_SANITIZE_NUMBER_INT);
+        $ring_number = strtoupper(trim($_POST['ring_number'] ?? ''));
+
+        if (!$member_id || !$year || !$ring_number) {
+            $error_msg = "All fields are required.";
+        } else {
+            try {
                 $stmt = $conn->prepare("INSERT INTO pigeons (member_id, ring_number, year, category) VALUES (?, ?, ?, 'Young Bird')");
                 $stmt->bind_param("iss", $member_id, $ring_number, $year);
                 $stmt->execute();
-                $success_msg = "Pigeon registered successfully! Ring: " . htmlspecialchars($ring_number);
+                $success_msg = "Pigeon $ring_number registered successfully!";
+            } catch (mysqli_sql_exception $e) {
+                $error_msg = ($e->getCode() == 1062) ? "Error: Ring number already exists." : "Database Error.";
             }
-        } catch (Exception $e) {
-            $error_msg = "Database Error: " . $e->getMessage();
         }
     }
-}
 
-// --- 2. HANDLE RACE ENTRY (Connecting Pigeons to a Race) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_to_race'])) {
-    $race_id = $_POST['race_id'] ?? null;
-    $selected_pigeons = $_POST['pigeon_ids'] ?? [];
+    // --- HANDLE BATCH RACE ENTRY ---
+    if (isset($_POST['assign_to_race'])) {
+        $race_id = $_POST['race_id'] ?? null;
+        $pigeon_ids = $_POST['pigeon_ids'] ?? [];
 
-    if (empty($race_id) || empty($selected_pigeons)) {
-        $error_msg = "Please select a race and at least one pigeon to enter.";
-    } else {
-        try {
-            $conn->begin_transaction();
-            // Get race distance for the entry record
-            $dist_stmt = $conn->prepare("SELECT distance_km FROM races WHERE id = ?");
-            $dist_stmt->bind_param("i", $race_id);
-            $dist_stmt->execute();
-            $race_dist_res = $dist_stmt->get_result()->fetch_assoc();
-            $race_dist = $race_dist_res['distance_km'] ?? 0;
+        if (!$race_id || empty($pigeon_ids)) {
+            $error_msg = "Select a race and at least one bird.";
+        } else {
+            try {
+                // Fetch race distance once
+                $dist_stmt = $conn->prepare("SELECT distance_km FROM races WHERE id = ?");
+                $dist_stmt->bind_param("i", $race_id);
+                $dist_stmt->execute();
+                $race_dist = $dist_stmt->get_result()->fetch_assoc()['distance_km'] ?? 0;
 
-            foreach ($selected_pigeons as $p_id) {
-                // Prevent duplicate entries
-                $check = $conn->prepare("SELECT id FROM race_entries WHERE race_id = ? AND pigeon_id = ?");
-                $check->bind_param("ii", $race_id, $p_id);
-                $check->execute();
-                if ($check->get_result()->num_rows == 0) {
-                    $stmt = $conn->prepare("INSERT INTO race_entries (race_id, pigeon_id, distance_km) VALUES (?, ?, ?)");
-                    $stmt->bind_param("iid", $race_id, $p_id, $race_dist);
-                    $stmt->execute();
+                // Optimization: Use a single query for multiple inserts
+                // 'INSERT IGNORE' skips duplicates automatically if you have a UNIQUE constraint on (race_id, pigeon_id)
+                $values = [];
+                $types = "";
+                $params = [];
+                
+                foreach ($pigeon_ids as $p_id) {
+                    $values[] = "(?, ?, ?)";
+                    $types .= "iid";
+                    array_push($params, $race_id, $p_id, $race_dist);
                 }
+                
+                $query = "INSERT IGNORE INTO race_entries (race_id, pigeon_id, distance_km) VALUES " . implode(',', $values);
+                $stmt = $conn->prepare($query);
+                $stmt->bind_param($types, ...$params);
+                $stmt->execute();
+                
+                $success_msg = count($pigeon_ids) . " birds processed for the race.";
+            } catch (Exception $e) {
+                $error_msg = "Entry Error: " . $e->getMessage();
             }
-            $conn->commit();
-            $success_msg = count($selected_pigeons) . " birds entered into the race successfully!";
-        } catch (Exception $e) {
-            $conn->rollback();
-            $error_msg = "Entry Error: " . $e->getMessage();
         }
     }
 }
 
-// --- 3. DATA FETCHING ---
-// Members for dropdown
-$members_res = $conn->query("SELECT m.id, u.full_name, m.loft_name FROM members m JOIN users u ON m.user_id = u.id ORDER BY u.full_name ASC");
-
-// Active Races for dropdown
-$races_res = $conn->query("SELECT id, race_name, status FROM races WHERE status != 'Completed' ORDER BY id DESC");
-
-// Registered Pigeons for the selection list
-$pigeons_res = $conn->query("
-    SELECT p.id, p.ring_number, m.loft_name, u.full_name 
+/**
+ * 3. DATA FETCHING (Using optimized queries)
+ */
+$members = $conn->query("SELECT m.id, u.full_name, m.loft_name FROM members m JOIN users u ON m.user_id = u.id ORDER BY u.full_name ASC")->fetch_all(MYSQLI_ASSOC);
+$races = $conn->query("SELECT id, race_name, status FROM races WHERE status != 'Completed' ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
+$pigeons = $conn->query("
+    SELECT p.id, p.ring_number, m.loft_name 
     FROM pigeons p 
     JOIN members m ON p.member_id = m.id 
-    JOIN users u ON m.user_id = u.id 
-    ORDER BY u.full_name ASC
-");
+    ORDER BY p.ring_number ASC
+")->fetch_all(MYSQLI_ASSOC);
 
-// Sidebar inclusion
 include "../../Includes/sidebar.php"; 
 ?>
 
@@ -109,158 +108,127 @@ include "../../Includes/sidebar.php";
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pigeon & Race Management - Admin</title>
+    <title>Pigeon Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background: linear-gradient(45deg, #00dbde 0%, #fc00ff 100%); min-height: 100vh; }
-        .custom-card { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); border-radius: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        body { background: #f1f5f9; min-height: 100vh; }
+        .glass-card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid #e2e8f0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="font-sans antialiased text-slate-800">
+<body class="text-slate-900">
 
-<div class="md:ml-64 p-4 md:p-8">
-    <div class="max-w-4xl mx-auto space-y-8 pb-10">
+<div class="md:ml-64 p-6">
+    <div class="max-w-5xl mx-auto space-y-6">
         
         <?php if($success_msg): ?>
-            <div class="p-4 bg-white/90 border-l-4 border-green-500 text-green-700 rounded-xl shadow-lg flex items-center gap-3">
-                <i class="fa-solid fa-circle-check"></i> <?= $success_msg ?>
+            <div class="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 rounded shadow-sm">
+                <i class="fa-solid fa-check-circle mr-2"></i> <?= $success_msg ?>
             </div>
         <?php endif; ?>
 
-        <?php if($error_msg): ?>
-            <div class="p-4 bg-white/90 border-l-4 border-red-500 text-red-700 rounded-xl shadow-lg flex items-center gap-3">
-                <i class="fa-solid fa-circle-exclamation"></i> <?= $error_msg ?>
-            </div>
-        <?php endif; ?>
-
-        <div class="grid grid-cols-1 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            <div class="custom-card p-8 md:p-10">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-black text-slate-800 flex items-center gap-3">
-                        <i class="fa-solid fa-plus-circle text-[#8a6b49]"></i> 
-                        1. Register New Bird
-                    </h2>
-                    <p class="text-slate-500 text-sm">Add a new pigeon to the database and assign it to an owner.</p>
-                </div>
-
-                <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2 space-y-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Select Owner</label>
-                        <div class="relative mb-2">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                            </span>
-                            <input type="text" id="ownerSearch" placeholder="Type member name to filter..." 
-                                   class="w-full pl-9 pr-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#8a6b49] outline-none transition-all">
-                        </div>
-                        <select name="member_id" id="ownerSelect" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#8a6b49] outline-none">
-                            <option value="">-- Choose Member --</option>
-                            <?php while($m = $members_res->fetch_assoc()): ?>
-                                <option value="<?= $m['id'] ?>">
-                                    <?= htmlspecialchars($m['full_name']) ?> (<?= htmlspecialchars($m['loft_name']) ?>)
-                                </option>
-                            <?php endwhile; ?>
+            <div class="glass-card p-6">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-feather text-sky-500"></i> Register New Bird
+                </h2>
+                <form method="POST" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Owner / Loft</label>
+                        <select name="member_id" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
+                            <option value="">-- Select Member --</option>
+                            <?php foreach($members as $m): ?>
+                                <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['full_name']) ?> (<?= htmlspecialchars($m['loft_name']) ?>)</option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Bird Year</label>
-                        <input type="number" name="year" value="<?= date('Y') ?>" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Year</label>
+                            <input type="number" name="year" value="<?= date('Y') ?>" class="w-full p-2.5 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Ring Number</label>
+                            <input type="text" name="ring_number" required class="w-full p-2.5 border rounded-lg" placeholder="EX: 2026-123">
+                        </div>
                     </div>
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Ring Number</label>
-                        <input type="text" name="ring_number" placeholder="NHPC-2025-XXXXX" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none">
-                    </div>
-                    <button type="submit" name="register_pigeon" class="md:col-span-2 bg-[#8a6b49] hover:bg-[#765d3f] text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
-                        Register Pigeon
+
+                    <button type="submit" name="register_pigeon" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2.5 rounded-lg transition-colors">
+                        Add to System
                     </button>
                 </form>
             </div>
 
-            <div class="custom-card p-8 md:p-10 border-t-8 border-[#8a6b49]">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-black text-slate-800 flex items-center gap-3">
-                        <i class="fa-solid fa-list-check text-[#8a6b49]"></i> 
-                        2. Assign Birds to Race
-                    </h2>
-                    <p class="text-slate-500 text-sm">Select a race and check the pigeons that will participate.</p>
-                </div>
-
-                <form method="POST" class="space-y-6">
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Target Race</label>
-                        <select name="race_id" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#8a6b49] outline-none">
+            <div class="glass-card p-6">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-stopwatch text-rose-500"></i> Race Entry
+                </h2>
+                <form method="POST" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    
+                    <div>
+                        <select name="race_id" required class="w-full p-2.5 border rounded-lg mb-4">
                             <option value="">-- Select Active Race --</option>
-                            <?php while($r = $races_res->fetch_assoc()): ?>
+                            <?php foreach($races as $r): ?>
                                 <option value="<?= $r['id'] ?>"><?= htmlspecialchars($r['race_name']) ?> (<?= $r['status'] ?>)</option>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs font-bold text-slate-500 uppercase">Select Participants</label>
-                            <input type="text" id="pigeonSearch" placeholder="Search Ring or Loft..." 
-                                   class="px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[10px] outline-none focus:ring-1 focus:ring-[#8a6b49] w-48">
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-slate-50 p-2 border-b flex justify-between items-center">
+                            <input type="text" id="pigeonSearch" placeholder="Filter birds..." class="text-sm p-1 border rounded w-1/2">
+                            <button type="button" onclick="toggleAllPigeons()" class="text-xs text-sky-600 font-bold uppercase">Select All</button>
                         </div>
-                        <div id="pigeonList" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
-                            <?php while($p = $pigeons_res->fetch_assoc()): ?>
-                                <label class="pigeon-item flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-100 hover:border-[#8a6b49] transition-all cursor-pointer group">
-                                    <input type="checkbox" name="pigeon_ids[]" value="<?= $p['id'] ?>" class="w-5 h-5 accent-[#8a6b49]">
-                                    <div class="text-xs">
-                                        <div class="ring-num font-bold text-slate-800 group-hover:text-[#8a6b49]"><?= htmlspecialchars($p['ring_number']) ?></div>
-                                        <div class="loft-name text-slate-400 font-medium"><?= htmlspecialchars($p['loft_name']) ?></div>
-                                    </div>
+                        <div id="pigeonList" class="max-h-60 overflow-y-auto p-2 custom-scrollbar grid grid-cols-1 gap-1">
+                            <?php foreach($pigeons as $p): ?>
+                                <label class="pigeon-item flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer border border-transparent hover:border-slate-200">
+                                    <input type="checkbox" name="pigeon_ids[]" value="<?= $p['id'] ?>" class="w-4 h-4 rounded text-sky-600">
+                                    <span class="text-sm">
+                                        <b class="ring-num"><?= htmlspecialchars($p['ring_number']) ?></b> 
+                                        <span class="text-slate-400 ml-2 loft-name text-xs"><?= htmlspecialchars($p['loft_name']) ?></span>
+                                    </span>
                                 </label>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
-                    <button type="submit" name="assign_to_race" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
-                        Confirm Race Entries
+                    <button type="submit" name="assign_to_race" class="w-full bg-slate-900 hover:bg-black text-white font-semibold py-2.5 rounded-lg transition-colors">
+                        Confirm Entries
                     </button>
                 </form>
             </div>
-        </div>
 
-        <div class="text-center text-white/50 text-xs font-bold tracking-widest uppercase">
-            Pigeon Racing System © 2026
         </div>
     </div>
 </div>
 
 <script>
-    // Live Search for Register New Bird (Dropdown)
-    document.getElementById('ownerSearch').addEventListener('input', function() {
-        const filter = this.value.toLowerCase();
-        const select = document.getElementById('ownerSelect');
-        const options = select.options;
-
-        for (let i = 1; i < options.length; i++) {
-            const text = options[i].text.toLowerCase();
-            options[i].style.display = text.includes(filter) ? 'block' : 'none';
-        }
-    });
-
-    // Live Search for Assign Birds to Race (Checkboxes)
-    document.getElementById('pigeonSearch').addEventListener('input', function() {
-        const filter = this.value.toLowerCase();
-        const items = document.querySelectorAll('.pigeon-item');
-
-        items.forEach(item => {
-            const ring = item.querySelector('.ring-num').textContent.toLowerCase();
-            const loft = item.querySelector('.loft-name').textContent.toLowerCase();
-            
-            if (ring.includes(filter) || loft.includes(filter)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
+    // Improved search filter
+    document.getElementById('pigeonSearch').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.pigeon-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(term) ? 'flex' : 'none';
         });
     });
-</script>
 
+    // Select all helper
+    function toggleAllPigeons() {
+        const checkboxes = document.querySelectorAll('input[name="pigeon_ids[]"]');
+        const firstValue = checkboxes[0].checked;
+        checkboxes.forEach(cb => {
+            if (cb.closest('.pigeon-item').style.display !== 'none') {
+                cb.checked = !firstValue;
+            }
+        });
+    }
+</script>
 </body>
 </html>

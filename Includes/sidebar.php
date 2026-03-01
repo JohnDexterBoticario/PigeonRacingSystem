@@ -60,47 +60,8 @@ if ($has_active_race && $role === 'admin') {
     <div class="member-stats">
         <i class="fa-solid fa-users"></i> Total Members: <strong><?= $total_members ?></strong>
     </div>
-
-    <div class="nav-divider">📡 Race Status Board</div>
-    <div class="status-board-container">
-        <?php if ($active_status_races->num_rows > 0): ?>
-            <?php while($race = $active_status_races->fetch_assoc()): 
-                $target_url = ($race['status'] === 'Released') 
-                    ? "/pigeon-racing-system/Member/live_arrivals.php?race_id=" . $race['id'] 
-                    : "/pigeon-racing-system/Public/RaceResult.php?race_id=" . $race['id'];
-            ?>
-                <a href="<?= $target_url ?>" class="status-card-link">
-                    <div class="status-card">
-                        <h4><?= htmlspecialchars($race['race_name']) ?></h4>
-                        <p><strong>Point:</strong> <?= htmlspecialchars($race['release_point']) ?></p>
-                        <p><strong>Status:</strong> <span class="status-<?= strtolower($race['status']) ?>"><?= $race['status'] ?></span></p>
-                        <p><strong>Time:</strong> <?= date('M d, g:i a', strtotime($race['release_datetime'])) ?></p>
-                        
-                        <?php if ($race['status'] === 'Released'): ?>
-                            <div class="speed-badge-mini">
-                                <i class="fa-solid fa-clock-rotate-left"></i> View Live Arrivals
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </a>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <p class="no-races-text">No active races.</p>
-        <?php endif; ?>
-    </div>
-
-    <div id="searchModal" class="search-modal-overlay">
-        <div class="modal-content-box">
-            <div class="modal-header">
-                <h3><i class="fa-solid fa-users"></i> Member Search Results</h3>
-                <span id="closeModal" class="close-modal-x">&times;</span>
-            </div>
-            <div id="modalResultsList" class="modal-results-list"></div>
-        </div>
-    </div>
-
     <nav class="sidebar-nav">
-        <a href="<?= ($_SESSION['role'] === 'admin') ? '/pigeon-racing-system/Admin/Dashboard.php' : '/pigeon-racing-system/Member/Dashboard.php' ?>">
+        <a href="<?= ($_SESSION['role'] === 'admin') ? '/pigeon-racing-system/Admin/AdminDashboard.php' : '/pigeon-racing-system/Member/Dashboard.php' ?>">
             <i class="fa-solid fa-house"></i> Home
         </a>
 
@@ -124,7 +85,7 @@ if ($has_active_race && $role === 'admin') {
             <a href="/pigeon-racing-system/Admin/Races/create.php"><i class="fa-solid fa-plus"></i> Create Race</a>
             <a href="/pigeon-racing-system/Admin/AdminRegistration.php"><i class="fa-solid fa-clipboard-list"></i> Member Registration</a>
             <a href="/pigeon-racing-system/Admin/Pigeons/register_pigeon.php"><i class="fa-solid fa-dove"></i> Pigeon Registration</a>
-            <a href="/pigeon-racing-system/Admin/members.php"><i class="fa-solid fa-users-gear"></i> Manage Members</a>
+            <a href="/pigeon-racing-system/Admin/Add_members.php"><i class="fa-solid fa-users-gear"></i> Manage Members</a>
             <a href="/pigeon-racing-system/Admin/logs.php"><i class="fa-solid fa-list-ul"></i> System Logs</a>
         <?php endif; ?>
 

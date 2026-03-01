@@ -1,0 +1,33 @@
+/* Logs Specific Styling */
+.log-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.log-action { 
+    font-weight: 600; 
+    color: #8a6b49; 
+}
+
+.log-timestamp { 
+    font-size: 13px; 
+    color: #888; 
+    white-space: nowrap;
+}
+
+.role-pill { 
+    font-size: 10px; 
+    padding: 2px 8px; 
+    border-radius: 10px; 
+    background: #f0f0f0; 
+    color: #666;
+    text-transform: uppercase;
+    margin-left: 5px;
+}
+
+/* Table Hover Effect */
+.table tbody tr:hover {
+    background-color: #f9fbfd;
+}

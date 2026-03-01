@@ -22,7 +22,7 @@ if (isset($_POST['login'])) {
 
             // Redirect based on role defined in your schema
             if ($user['role'] === 'admin') {
-                header("Location: ../Admin/Races/create.php"); // Path for Admin
+                header("Location: ../Admin/AdminDashboard.php"); // Path for Admin
             } else {
                 header("Location: ../Member/Dashboard.php"); // Path for Member
             }
@@ -47,41 +47,54 @@ if (isset($_POST['login'])) {
 </head>
 <body>
 
-<div class="login-wrapper">
-    <div class="login-card">
-        <form method="POST" action="">
-            <h2>Login</h2>
+<div class="login-container">
+    <div class="image-section">
+    <img src="../Assets/Css/Images/BackG.jpg" alt="Pigeon Racing" class="side-image">
+        <div class="brand-overlay">
+            <h1>Pigeon Racing</h1>
+            <p>Elevating the sport, one flight at a time.</p>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="login-card">
+            <div class="card-header">
+                <h2>Welcome Back</h2>
+                <p>Please log in to your account</p>
+            </div>
 
             <?php if(isset($error)): ?>
-                <p style="color: #ff4d4d; margin-bottom: 20px; font-size: 14px;"><?php echo $error; ?></p>
+                <div class="error-msg">
+                    <i class="fa-solid fa-circle-exclamation"></i> <?php echo $error; ?>
+                </div>
             <?php endif; ?>
 
-            <div class="input-group">
-                <label>Username</label>
-                <div class="input-with-icon">
-                    <i class="fa fa-user"></i>
-                    <input type="text" name="username" placeholder="Type your username" required>
+            <form method="POST" action="">
+                <div class="input-group">
+                    <label>Username</label>
+                    <div class="input-wrapper">
+                        <i class="fa fa-user"></i>
+                        <input type="text" name="username" placeholder="Type your username" required>
+                    </div>
                 </div>
-            </div>
 
-            <div class="input-group">
-                <label>Password</label>
-                <div class="input-with-icon">
-                    <i class="fa fa-lock"></i>
-                    <input type="password" name="password" placeholder="Type your password" required>
+                <div class="input-group">
+                    <label>Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa fa-lock"></i>
+                        <input type="password" name="password" placeholder="Type your password" required>
+                    </div>
+                    <a href="#" class="forgot-pass">Forgot password?</a>
                 </div>
-                <a href="#" class="forgot-pass">Forgot password?</a>
-            </div>
 
-            <button type="submit" name="login" class="login-btn">LOGIN</button>
+                <button type="submit" name="login" class="login-btn">LOGIN</button>
 
-            <div class="signup-link">
-                <p>Don't have an account?</p>
-                <a href="register.php">SIGN UP</a>
-            </div>
-        </form>
+                <div class="signup-link">
+                    <p>Don't have an account? <a href="register.php">SIGN UP</a></p>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-
-</body>
 </html>
+</body>
