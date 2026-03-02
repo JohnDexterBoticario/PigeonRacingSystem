@@ -158,30 +158,40 @@ function loadBirds(selectElement) {
     }
 }
 
-/**
- * Logic: Dynamically add bird entry rows
- */
 function addRow() {
     const container = $('#bird-entries-container');
-    const $newRow = $('.bird-entry-row').first().clone();
+    // Select the first row to use as a template
+    const $templateRow = $('.bird-entry-row').first();
     
-    // Clean up Select2 artifacts from the cloned row
-    $newRow.find('.select2-container').remove();
+    // Create a clone
+    const $newRow = $templateRow.clone();
+
+    // 1. Clean up Select2 artifacts (this is the most important part)
+    $newRow.find('.select2-container').remove(); 
     $newRow.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').val("");
     
-    // Reset inputs
+    // 2. Clear input values
     $newRow.find('input').val("");
     
-    // Switch plus button to remove button
-    $newRow.find('button')
-        .html('<i class="fa-solid fa-minus"></i>')
+    // 3. Clear the pigeon dropdown options (so it doesn't show the previous member's birds)
+    $newRow.find('.pigeon-select').html('<option value="">-- Select Bird --</option>');
+
+    // 4. Transform the Plus button into a Remove button
+    const $btn = $newRow.find('button');
+    $btn.html('<i class="fa-solid fa-minus"></i>')
         .removeClass('btn-add-row')
         .addClass('btn-remove-row')
-        .attr('onclick', '')
+        .css('background-color', '#dc3545') // Red color for remove
+        .attr('onclick', '') 
         .off('click')
-        .on('click', function() { $(this).closest('.bird-entry-row').remove(); });
+        .on('click', function() {
+            $(this).closest('.bird-entry-row').remove();
+        });
 
+    // 5. Append to container
     container.append($newRow);
+
+    // 6. Re-initialize Select2 on the new row
     initFilters($newRow);
 }
 </script>

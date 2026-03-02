@@ -139,14 +139,22 @@ include "../../Includes/sidebar.php";
                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                     
                     <div>
-                        <label class="block text-sm font-medium text-slate-600 mb-1">Owner / Loft</label>
-                        <select name="member_id" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
-                            <option value="">-- Select Member --</option>
-                            <?php foreach($members as $m): ?>
-                                <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['full_name']) ?> (<?= htmlspecialchars($m['loft_name']) ?>)</option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+    <label class="block text-sm font-medium text-slate-600 mb-1">Search & Select Owner</label>
+    <div class="relative">
+        <input type="text" id="memberSearchInput" placeholder="Type name or loft..." 
+               class="w-full p-2.5 mb-2 border rounded-lg focus:ring-2 focus:ring-sky-500 outline-none text-sm">
+        
+        <select name="member_id" id="memberSelect" required 
+                class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
+            <option value="">-- Select Member --</option>
+            <?php foreach($members as $m): ?>
+                <option value="<?= $m['id'] ?>" data-search="<?= strtolower(htmlspecialchars($m['full_name'] . ' ' . $m['loft_name'])) ?>">
+                    <?= htmlspecialchars($m['full_name']) ?> (<?= htmlspecialchars($m['loft_name']) ?>)
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+</div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -229,6 +237,28 @@ include "../../Includes/sidebar.php";
             }
         });
     }
+    // Search filter for Member Dropdown
+document.getElementById('memberSearchInput').addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase();
+    const select = document.getElementById('memberSelect');
+    const options = select.options;
+    let firstVisibleMatch = null;
+
+    for (let i = 1; i < options.length; i++) {
+        const searchText = options[i].getAttribute('data-search');
+        if (searchText.includes(term)) {
+            options[i].style.display = ""; // Show
+            if (!firstVisibleMatch) firstVisibleMatch = options[i];
+        } else {
+            options[i].style.display = "none"; // Hide
+        }
+    }
+
+    // Optional: Auto-select the first match if the user is typing
+    if (term.length > 2 && firstVisibleMatch) {
+        // select.value = firstVisibleMatch.value; // Uncomment to auto-select
+    }
+});
 </script>
 </body>
 </html>

@@ -26,4 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         die("Fatal Error: " . $conn->error);
     }
+    // Inside process_create_race.php
+$race_id = $conn->insert_id; // Get the ID of the race you just created
+
+foreach ($_POST['pigeon_ids'] as $key => $pigeon_id) {
+    $sticker = $_POST['sticker_codes'][$key];
+    $conn->query("INSERT INTO race_entries (race_id, pigeon_id, sticker_code) 
+                  VALUES ('$race_id', '$pigeon_id', '$sticker')");
+}
 }

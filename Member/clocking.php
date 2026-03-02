@@ -4,22 +4,6 @@ session_start();
 date_default_timezone_set('Asia/Manila'); 
 require_once "../Config/database.php";
 
-/**
- * Haversine Formula: Calculates distance between coordinates in KM
- */
-function calculateHaversineDistance($lat1, $lon1, $lat2, $lon2) {
-    $earthRadius = 6371; 
-    $dLat = deg2rad($lat2 - $lat1);
-    $dLon = deg2rad($lon2 - $lon1);
-
-    $a = sin($dLat / 2) * sin($dLat / 2) +
-         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-         sin($dLon / 2) * sin($dLon / 2);
-    
-    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-    return $earthRadius * $c;
-}
-
 // 2. Security Check
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../Auth/login.php");
@@ -56,10 +40,9 @@ if (isset($_POST['clock_bird'])) {
     $arrival_time = date('Y-m-d H:i:s'); 
 
     $stmt = $conn->prepare("
-        SELECT re.pigeon_id, r.release_datetime as release_datetime, r.race_name, 
-               r.lat_release, r.long_release, 
-               p.ring_number, p.category, 
-               m.latitude as loft_lat, m.longitude as loft_long
+        SELECT re.pigeon_id, r.release_datetime, r.race_name, 
+               r.distance_km, 
+               p.ring_number, p.category
         FROM race_entries re
         JOIN pigeons p ON re.pigeon_id = p.id
         JOIN members m ON p.member_id = m.id
@@ -71,47 +54,50 @@ if (isset($_POST['clock_bird'])) {
     $data = $stmt->get_result()->fetch_assoc();
 
     if ($data) {
-        // Check if coordinates exist
-        if (empty($data['loft_lat']) || empty($data['loft_long'])) {
-            $error_msg = "Error: Your loft coordinates are not set in your profile!";
-        } else {
-            $dist = calculateHaversineDistance(
-                $data['lat_release'], $data['long_release'],
-                $data['loft_lat'], $data['loft_long']
-            );
-            
-            $release_time = strtotime($data['release_datetime']);
-            $clock_time = strtotime($arrival_time);
-            $diff_seconds = $clock_time - $release_time;
+        // FIXED: Removed the loft_lat/loft_long check because we use fixed distance_km
+        $dist = $data['distance_km']; 
+        $release_time = strtotime($data['release_datetime']);
+        $clock_time = strtotime($arrival_time);
+        $diff_seconds = $clock_time - $release_time;
 
-            if ($diff_seconds <= 0) {
-                $error_msg = "Error: Bird clocked before race release time! Release: " . date('h:i:s A', $release_time);
+        if ($diff_seconds <= 0) {
+            $error_msg = "Error: Bird clocked before race release time!";
+        } else {
+            $diff_minutes = $diff_seconds / 60;
+            
+            // Formula matches your Forecast: (115 * 1000) / Minutes
+            $speed = ($dist * 1000) / $diff_minutes;
+            
+            if ($speed > 2500) { 
+                $error_msg = "Unrealistic Speed: " . number_format($speed, 2) . " MPM. <br>" . 
+                             "Dist: " . number_format($dist, 3) . "km | Time: " . round($diff_minutes, 2) . " min.";
             } else {
-                $diff_minutes = $diff_seconds / 60;
-                $speed = ($dist * 1000) / $diff_minutes;
+                $save = $conn->prepare("
+                    INSERT INTO race_results (race_id, pigeon_id, arrival_time, speed_mpm, distance_km) 
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE arrival_time=VALUES(arrival_time), speed_mpm=VALUES(speed_mpm), distance_km=VALUES(distance_km)
+                ");
+                $save->bind_param("iisdd", $race_id, $data['pigeon_id'], $arrival_time, $speed, $dist);
                 
-                // ADJUSTED: Show the actual calculated speed in the error to help you debug
-                if ($speed > 2500) { 
-                    $error_msg = "Unrealistic Speed: " . number_format($speed, 2) . " MPM. <br>" . 
-                                 "Dist: " . number_format($dist, 3) . "km | Time: " . round($diff_minutes, 2) . " min. <br>" .
-                                 "Check your Loft Coordinates or Race Release Time.";
-                } else {
-                    $save = $conn->prepare("
-                        INSERT INTO race_results (race_id, pigeon_id, arrival_time, speed_mpm, distance_km) 
-                        VALUES (?, ?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE arrival_time=VALUES(arrival_time), speed_mpm=VALUES(speed_mpm), distance_km=VALUES(distance_km)
-                    ");
-                    $save->bind_param("iisdd", $race_id, $data['pigeon_id'], $arrival_time, $speed, $dist);
-                    
-                    if ($save->execute()) {
-                        $success_msg = "Successfully Clocked: " . $data['ring_number'] . " at " . number_format($speed, 2) . " MPM";
-                        $sms_data = [
-                            'ring' => $data['ring_number'], 
-                            'race' => $data['race_name'], 
-                            'time' => date('H:i:s'), 
-                            'speed' => number_format($speed, 2)
-                        ];
-                    }
+                if ($save->execute()) {
+                    $update_ranks = $conn->prepare("
+        UPDATE race_results r1
+        JOIN (
+            SELECT id, RANK() OVER (ORDER BY speed_mpm DESC) as new_rank
+            FROM race_results
+            WHERE race_id = ?
+        ) r2 ON r1.id = r2.id
+        SET r1.rank = r2.new_rank
+    ");
+    $update_ranks->bind_param("i", $race_id);
+    $update_ranks->execute();
+                    $success_msg = "Successfully Clocked: " . $data['ring_number'] . " at " . number_format($speed, 2) . " MPM";
+                    $sms_data = [
+                        'ring' => $data['ring_number'], 
+                        'race' => $data['race_name'], 
+                        'time' => date('H:i:s'), 
+                        'speed' => number_format($speed, 2)
+                    ];
                 }
             }
         }
@@ -119,6 +105,7 @@ if (isset($_POST['clock_bird'])) {
         $error_msg = "Invalid Identifier or bird not registered for this race.";
     }
 }
+
 
 // 5. Recent Results Fetch
 $my_results = $conn->prepare("

@@ -14,8 +14,13 @@ $total_members = $conn->query("SELECT COUNT(*) as total FROM members")->fetch_as
 $total_pigeons = $conn->query("SELECT COUNT(*) as total FROM pigeons")->fetch_assoc()['total'];
 $total_races = $conn->query("SELECT COUNT(*) as total FROM races")->fetch_assoc()['total'];
 
-$active_status_races = $conn->query("SELECT * FROM races WHERE status != 'Completed' ORDER BY release_datetime ASC");
-$active_race = $conn->query("SELECT id, race_name, release_point, distance_km, release_datetime FROM races WHERE status = 'Released' ORDER BY id DESC LIMIT 1")->fetch_assoc();
+// Fetch only the race released TODAY
+$active_race_query = $conn->query("
+  SELECT * FROM races ORDER BY id DESC LIMIT 1
+");
+
+$active_race = $active_race_query->fetch_assoc();
+// If no race is found, $active_race will be null
 $recent_logs = $conn->query("SELECT action, created_at FROM activity_logs ORDER BY created_at DESC LIMIT 5");
 ?>
 
@@ -71,44 +76,23 @@ $recent_logs = $conn->query("SELECT action, created_at FROM activity_logs ORDER 
                         <span>Schedule Race</span>
                     </a>
                     <a href="javascript:void(0)" onclick="loadForecast()" class="btn-action">
-                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    <i class="fas fa-clock"></i>
                         <span>Race Forecast</span>
                     </a>
                 </div>
             </div>
-
-            <div class="card mb-4">
-                <h3 class="mb-3"><i class="fa-solid fa-tower-broadcast"></i> Current Race Status</h3>
-                <div class="row">
-                    <?php if ($active_status_races && $active_status_races->num_rows > 0): ?>
-                        <?php while($race = $active_status_races->fetch_assoc()): 
-                            $status_class = strtolower($race['status']);
-                            $target_url = ($race['status'] === 'Released') 
-                                ? "/pigeon-racing-system/Member/live_arrivals.php?race_id=" . $race['id'] 
-                                : "/pigeon-racing-system/Public/RaceResult.php?race_id=" . $race['id'];
-                        ?>
-                        <div class="col-md-6 mb-3">
-                            <div class="race-card border p-3 rounded shadow-sm">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h5 class="h6 fw-bold text-primary mb-0"><?= htmlspecialchars($race['race_name']) ?></h5>
-                                    <span class="badge rounded-pill bg-<?= ($status_class === 'released') ? 'success' : 'warning' ?>">
-                                        <?= $race['status'] ?>
-                                    </span>
-                                </div>
-                                <div class="small text-muted mb-3">
-                                    <p class="mb-1"><i class="fa-solid fa-location-dot"></i> Point: <?= htmlspecialchars($race['release_point']) ?></p>
-                                    <p class="mb-1"><i class="fa-solid fa-clock"></i> Released: <?= date('M d, g:i a', strtotime($race['release_datetime'])) ?></p>
-                                    <p class="mb-0"><i class="fa-solid fa-cloud-sun"></i> Weather: <?= htmlspecialchars($race['weather'] ?? 'Clear') ?></p>
-                                </div>
-                                <a href="<?= $target_url ?>" class="btn btn-view btn-sm w-100">View Details</a>
-                            </div>
-                        </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <div class="col-12 text-center py-4 text-muted">
-                            <p class="m-0 small">No active races currently found.</p>
-                        </div>
-                    <?php endif; ?>
+                <?php if ($active_race): ?>
+<div class="glass-card p-6">
+    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-tower-broadcast text-blue-500"></i> Current Race Status
+    </h2>
+    <div class="border-l-4 border-blue-500 pl-4 py-2">
+        <h3 class="text-blue-600 font-bold"><?= htmlspecialchars($active_race['race_name']) ?></h3>
+        <p class="text-sm text-slate-600"><i class="fa-solid fa-location-dot"></i> Point: <?= htmlspecialchars($active_race['release_point']) ?></p>
+        <p class="text-sm text-slate-600"><i class="fa-solid fa-clock"></i> Released: <?= date('M d, g:i a', strtotime($active_race['release_datetime'])) ?></p>
+    </div>
+</div>
+<?php endif; ?>
                 </div>
             </div>
 

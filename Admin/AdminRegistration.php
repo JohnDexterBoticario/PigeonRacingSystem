@@ -71,7 +71,7 @@ if (isset($_POST['register'])) {
                 $stmt2->execute();
 
                 $conn->commit();
-                echo "<script>alert('Registration successful!'); window.location.href='Dashboard.php';</script>";
+                echo "<script>alert('Registration successful!'); window.location.href='AdminDashboard.php';</script>";
             } catch (Exception $e) {
                 $conn->rollback();
                 $error = "Registration failed: " . $e->getMessage();
@@ -187,7 +187,7 @@ if (isset($_POST['register'])) {
                 </button>
 
                 <div class="login-link">
-                    <a href="Dashboard.php"><i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard</a>
+                    <a href="AdminDashboard.php"><i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard</a>
                 </div>
             </form>
         </div>
