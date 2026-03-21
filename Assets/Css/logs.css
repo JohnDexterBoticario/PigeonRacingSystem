@@ -1,0 +1,183 @@
+/* --- Unified System Logs Styling --- */
+:root {
+    --primary: #4f46e5;         /* Indigo - Main Action */
+    --primary-hover: #4338ca;
+    --accent: #8a6b49;          /* Bronze - Brand color */
+    --slate-800: #1e293b;
+    --slate-600: #475569;
+    --slate-500: #64748b;
+    --slate-100: #f1f5f9;
+    --white: #ffffff;
+    --border: #e2e8f0;
+    --bg-body: #f8fafc;
+}
+
+body {
+    background-color: var(--bg-body) !important;
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--slate-800);
+}
+
+.main-content {
+    margin-left: 260px; /* Sidebar offset */
+    padding: 2rem;
+    min-height: 100vh;
+}
+
+/* --- Header & Title --- */
+.log-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.page-title { font-size: 1.75rem; font-weight: 800; color: var(--slate-800); margin: 0; }
+.page-subtitle { color: var(--slate-500); font-size: 0.95rem; margin-top: 4px; }
+
+/* --- Filter & Search Bar --- */
+.filter-card {
+    background: var(--white);
+    padding: 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.filter-form { 
+    display: flex; 
+    gap: 12px; 
+    align-items: center; 
+    flex-wrap: wrap;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    background: var(--slate-100);
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.input-group i { color: var(--slate-500); margin-right: 10px; }
+
+.input-group select, .input-group input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 0.9rem;
+    color: var(--slate-800);
+    min-width: 150px;
+}
+
+.btn-search {
+    background: var(--slate-800);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-search:hover { opacity: 0.9; }
+
+.btn-reset {
+    color: var(--slate-500);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* --- Buttons --- */
+.btn-print {
+    background: var(--accent);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.btn-print:hover { background: #765d3f; }
+
+/* --- Table Card --- */
+.log-card {
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.table-responsive { width: 100%; overflow-x: auto; }
+
+.log-table { width: 100%; border-collapse: collapse; }
+
+.log-table th {
+    background: #f8fafc;
+    color: var(--slate-500);
+    text-align: left;
+    padding: 1rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+}
+
+.log-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--slate-100);
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+/* --- Column Styling --- */
+.date-text { display: block; font-weight: 700; color: var(--slate-800); }
+.time-text { font-size: 0.8rem; color: var(--slate-500); }
+
+.user-pill { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.user-pill i { color: var(--primary); }
+
+.action-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    background: var(--slate-100);
+    color: var(--slate-600);
+}
+
+/* Color Tags for common actions */
+.tag-pigeon-registration { background: #dcfce7; color: #166534; }
+.tag-race-creation { background: #dbeafe; color: #1e40af; }
+.tag-race-assignment { background: #fef3c7; color: #92400e; }
+
+/* --- PRINT LOGIC --- */
+.print-only-header { display: none; }
+
+@media print {
+    .no-print, .sidebar { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    .log-card { border: none !important; box-shadow: none !important; }
+    body { background: white !important; }
+    .log-table th { background: #eee !important; color: black !important; }
+    
+    .print-only-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #333;
+        padding-bottom: 15px;
+    }
+}

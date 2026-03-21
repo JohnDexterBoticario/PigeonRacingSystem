@@ -127,87 +127,85 @@ include "../Includes/sidebar.php";
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clocking System - GPFC Club</title>
     <link rel="stylesheet" href="../Assets/Css/nav.css">
-    <link rel="stylesheet" href="../Assets/Css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body { background: linear-gradient(45deg, #00dbde 0%, #fc00ff 100%); min-height: 100vh; margin: 0; }
-        .main-content { margin-left: 260px; padding: 40px; }
-        .card { background: white !important; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 25px; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; border: 1px dashed #8a6b49; }
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; color: white; }
-        .bg-young { background: #27ae60; } .bg-old { background: #2980b9; } .bg-off { background: #e67e22; }
-        .sms-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        .phone-mock { background: #1a1a1a; padding: 15px; border-radius: 40px; width: 300px; border: 4px solid #333; }
-        .phone-screen { background: #fff; border-radius: 25px; padding: 20px; height: 350px; display: flex; flex-direction: column; overflow: hidden; }
-        .sms-bubble { background: #e9e9eb; padding: 10px; border-radius: 15px; font-size: 13px; line-height: 1.4; color: #000; }
-        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: center; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    </style>
+    <link rel="stylesheet" href="../Assets/Css/clocking.css"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
 <div class="main-content">
-    <div class="container" style="max-width: 900px; margin: auto;">
+    <div class="clocking-container">
 
         <?php if($success_msg): ?>
-            <div class="alert alert-success"><i class="fa-solid fa-circle-check"></i> <?= $success_msg ?></div>
+            <div class="clock-card" style="border-left: 5px solid var(--success); background: #ecfdf5;">
+                <div style="color: #065f46; font-weight: 700;">
+                    <i class="fa-solid fa-circle-check"></i> <?= $success_msg ?>
+                </div>
+            </div>
         <?php endif; ?>
+
         <?php if($error_msg): ?>
-            <div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation"></i> <?= $error_msg ?></div>
+            <div class="clock-card" style="border-left: 5px solid var(--danger); background: #fef2f2;">
+                <div style="color: #991b1b; font-weight: 700;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <?= $error_msg ?>
+                </div>
+            </div>
         <?php endif; ?>
         
-        <div class="card">
-            <h3 style="margin-bottom: 15px;"><i class="fa-solid fa-chart-line"></i> Race Overview</h3>
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <small>My Birds in Pooling</small>
-                    <div style="font-size: 24px; font-weight: bold; color: #8a6b49;"><?= $my_pooling_count ?></div>
+        <div class="clock-card">
+            <div class="card-header"><i class="fa-solid fa-chart-pie"></i> Race Overview</div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-lbl">My Birds in Pooling</span>
+                    <span class="stat-val"><?= $my_pooling_count ?></span>
                 </div>
-
-                <div class="stat-box" style="border-color: #fc00ff;">
-                    <small style="color: #666;">Total Birds Clocked (Live)</small>
-                    <div style="font-size: 24px; font-weight: bold; color: #fc00ff;"><?= $total_birds_clocked ?></div>
-                    <?php if($role === 'admin'): ?>
-                        <a href="live_arrivals.php?race_id=<?= $stats_race_id ?>" style="font-size: 10px; color: #888;">View Full List <i class="fa-solid fa-external-link"></i></a>
-                    <?php endif; ?>
+                <div class="stat-item" style="border-color: var(--accent);">
+                    <span class="stat-lbl">Total Birds Clocked</span>
+                    <span class="stat-val" style="color: var(--accent);"><?= $total_birds_clocked ?></span>
                 </div>
             </div>
         </div>
 
-        <div class="card">
-            <h2 style="color: #8a6b49; text-align: center;"><i class="fa-solid fa-bolt"></i> Instant Clocking</h2>
+        <div class="clock-card">
+            <div class="card-header"><i class="fa-solid fa-bolt-lightning"></i> Instant Clocking</div>
             <form method="POST">
-                <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <select name="race_id" required onchange="window.location.href='?race_id=' + this.value" style="padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
-                        <option value="">-- Select Active Race --</option>
+                <div class="input-group">
+                    <label>Active Race</label>
+                    <select name="race_id" required onchange="window.location.href='?race_id=' + this.value">
+                        <option value="">-- Select Race --</option>
                         <?php 
-                        // This will show all races, prioritizing the most recent ones
                         $active = $conn->query("SELECT id, race_name FROM races ORDER BY id DESC"); 
                         while($r = $active->fetch_assoc()): ?>
-                            <option value="<?= $r['id'] ?>" <?= ($stats_race_id == $r['id']) ? 'selected' : '' ?>><?= htmlspecialchars($r['race_name']) ?></option>
+                            <option value="<?= $r['id'] ?>" <?= ($stats_race_id == $r['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($r['race_name']) ?>
+                            </option>
                         <?php endwhile; ?>
                     </select>
-                    <input type="text" name="identifier" placeholder="Enter Ring Number or Sticker Code" required style="padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
-                    <button type="submit" name="clock_bird" style="background: #8a6b49; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">CLOCK NOW</button>
                 </div>
+
+                <div class="input-group">
+                    <label>Ring Number / Sticker Code</label>
+                    <input type="text" name="identifier" placeholder="e.g. PHA 12345" required autocomplete="off">
+                </div>
+
+                <button type="submit" name="clock_bird" class="btn-clock">
+                    SUBMIT ARRIVAL
+                </button>
             </form>
         </div>
 
-        <div class="card">
-            <h3><i class="fa-solid fa-list-check"></i> My Recent Arrivals</h3>
-            <div style="overflow-x: auto;">
-                <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+        <div class="clock-card">
+            <div class="card-header"><i class="fa-solid fa-history"></i> My Recent Arrivals</div>
+            <div class="table-wrapper">
+                <table>
                     <thead>
-                        <tr style="background:#f8f9fa; text-align: left;">
-                            <th style="padding:12px;">Ring Number</th>
-                            <th style="padding:12px;">Category</th>
-                            <th style="padding:12px;">Distance</th>
-                            <th style="padding:12px;">Time</th>
-                            <th style="padding:12px;">Speed (MPM)</th>
+                        <tr>
+                            <th>Ring Number</th>
+                            <th>Category</th>
+                            <th>Distance</th>
+                            <th>Arrival Time</th>
+                            <th>Speed</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -216,15 +214,15 @@ include "../Includes/sidebar.php";
                                 $badge = ($row['category'] == 'Old Bird') ? 'bg-old' : (($row['category'] == 'Off Color') ? 'bg-off' : 'bg-young');
                             ?>
                             <tr>
-                                <td style="padding:12px; border-bottom: 1px solid #eee;"><strong><?= htmlspecialchars($row['ring_number']) ?></strong></td>
-                                <td style="padding:12px; border-bottom: 1px solid #eee;"><span class="badge <?= $badge ?>"><?= htmlspecialchars($row['category']) ?></span></td>
-                                <td style="padding:12px; border-bottom: 1px solid #eee;"><?= number_format($row['distance_km'], 3) ?> km</td>
-                                <td style="padding:12px; border-bottom: 1px solid #eee;"><?= date('H:i:s', strtotime($row['arrival_time'])) ?></td>
-                                <td style="padding:12px; border-bottom: 1px solid #eee; font-weight:bold;"><?= number_format($row['speed_mpm'], 2) ?></td>
+                                <td><strong><?= htmlspecialchars($row['ring_number']) ?></strong></td>
+                                <td><span class="badge <?= $badge ?>"><?= htmlspecialchars($row['category']) ?></span></td>
+                                <td style="color: var(--text-muted);"><?= number_format($row['distance_km'], 3) ?> km</td>
+                                <td><?= date('H:i:s', strtotime($row['arrival_time'])) ?></td>
+                                <td style="font-weight: 800; color: var(--primary);"><?= number_format($row['speed_mpm'], 2) ?> <small>MPM</small></td>
                             </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" style="padding:30px; text-align:center; color:#999;">No birds clocked yet for this account.</td></tr>
+                            <tr><td colspan="5" style="padding:40px; text-align:center; color: var(--text-muted);">Ready for your first arrival...</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -235,16 +233,25 @@ include "../Includes/sidebar.php";
 
 <?php if ($sms_data): ?>
 <div class="sms-overlay" id="smsOverlay">
-    <div class="phone-mock">
-        <div class="phone-screen">
-            <div style="text-align: center; font-size: 11px; color: #aaa; margin-bottom: 10px;">Messages • Now</div>
-            <div class="sms-bubble">
-                <strong>GPFC CLUB SMS:</strong><br>
-                Bird [<?= htmlspecialchars($sms_data['ring']) ?>] clocked for <?= htmlspecialchars($sms_data['race']) ?>.<br>
-                Speed: <strong><?= $sms_data['speed'] ?> MPM</strong>.
+    <div class="phone-container">
+        <div class="phone-inner">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 40px; height: 5px; background: #e5e7eb; border-radius: 10px; margin: 0 auto 10px;"></div>
+                <span style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Message Delivered</span>
             </div>
+            
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 15px; font-size: 14px; border-bottom-left-radius: 2px;">
+                <strong>GPFC CLUB:</strong><br>
+                Bird <strong><?= htmlspecialchars($sms_data['ring']) ?></strong> successfully clocked!<br><br>
+                Race: <?= htmlspecialchars($sms_data['race']) ?><br>
+                Speed: <span style="color: var(--primary); font-weight: bold;"><?= $sms_data['speed'] ?> MPM</span>
+            </div>
+
             <div style="flex-grow: 1;"></div>
-            <button onclick="document.getElementById('smsOverlay').style.display='none'" style="width: 100%; padding: 10px; background: #007aff; color: white; border: none; border-radius: 10px; cursor: pointer;">OK</button>
+            <button onclick="document.getElementById('smsOverlay').style.display='none'" 
+                    style="width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">
+                CONTINUE CLOCKING
+            </button>
         </div>
     </div>
 </div>

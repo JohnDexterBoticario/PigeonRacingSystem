@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
+/* --- Reset & Base Styles --- */
 * {
     margin: 0;
     padding: 0;
@@ -9,46 +10,61 @@
 
 body {
     background-color: #ffffff;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden; /* Prevents side-scrolling on mobile */
 }
 
 .login-container {
     display: flex;
-    height: 100vh;
+    min-height: 100vh;
     width: 100%;
 }
 
-/* --- EFFECT 1: Smooth Entrance Animation --- */
+/* --- Animations --- */
 @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-30px); }
-    to { opacity: 1; transform: translateX(0); }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
+/* --- Form Section --- */
 .form-section {
-    flex: 0.8;
+    flex: 1;
     background-color: #ffffff;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 40px;
+    padding: 40px 20px;
     z-index: 2;
-    animation: slideIn 0.8s ease-out; /* */
+    animation: slideIn 0.8s ease-out;
 }
 
 .login-card {
     width: 100%;
-    max-width: 440px;
+    max-width: 480px;
 }
 
-/* --- EFFECT 2: Image Hover Zoom --- */
+.login-card h2 {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 5px;
+}
+
+.login-card p {
+    color: #718096;
+    font-size: 14px;
+    margin-bottom: 30px;
+}
+
+/* --- Image Section --- */
 .image-section {
     flex: 1.2;
     position: relative;
     display: flex;
     align-items: flex-end;
     padding: 60px;
-    height: 100vh;
     overflow: hidden;
 }
 
@@ -60,28 +76,30 @@ body {
     height: 100%;
     object-fit: cover;
     z-index: 1;
-    transition: transform 1.5s ease; /* */
+    transition: transform 1.5s ease;
 }
 
 .image-section:hover .side-image {
-    transform: scale(1.08); /* Slow zoom effect on the pigeon */
+    transform: scale(1.05);
 }
 
 .brand-overlay {
     position: relative;
     z-index: 2;
+    max-width: 500px;
 }
 
 .brand-overlay h1 {
     color: #ffffff;
-    font-size: clamp(32px, 5vw, 52px);
+    font-size: clamp(32px, 5vw, 56px);
     font-weight: 800;
-    text-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    line-height: 1.1;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
-/* --- EFFECT 3: Input Glow & Icon Color Change --- */
+/* --- Form Elements --- */
 .input-group {
-    margin-bottom: 15px;
+    margin-bottom: 18px;
 }
 
 .input-row {
@@ -95,72 +113,116 @@ body {
     font-size: 13px;
     font-weight: 700;
     color: #2d3748;
-    margin-bottom: 6px;
-    transition: color 0.3s;
+    margin-bottom: 8px;
 }
 
 .input-wrapper {
     position: relative;
 }
 
+/* Styling for the icons (assuming you use FontAwesome or similar) */
 .input-wrapper i {
     position: absolute;
-    left: 14px;
+    left: 16px;
     top: 50%;
     transform: translateY(-50%);
     color: #a0aec0;
-    transition: color 0.3s, transform 0.3s;
+    transition: all 0.3s ease;
+    pointer-events: none;
 }
 
-.input-wrapper input, .input-wrapper select {
+.input-wrapper input, 
+.input-wrapper select {
     width: 100%;
-    padding: 12px 12px 12px 42px;
+    padding: 14px 14px 14px 45px;
     border: 1.5px solid #edf2f7;
     border-radius: 12px;
     font-size: 14px;
-    background-color: #f7fafc;
+    color: #2d3748;
+    background-color: #f8fafc;
     transition: all 0.3s ease;
+    appearance: none; /* Removes default safari styling on select */
 }
 
-/* Focus Effects */
-.input-wrapper input:focus {
+/* Focus States */
+.input-wrapper input:focus, 
+.input-wrapper select:focus {
     outline: none;
     border-color: #2ecc71;
     background-color: #ffffff;
-    box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.15);
+    box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.1);
 }
 
-/* Change icon color and pop it when typing */
-.input-wrapper input:focus + i, 
-.input-wrapper select:focus + i {
+.input-wrapper input:focus + i {
     color: #2ecc71;
-    transform: translateY(-50%) scale(1.1);
 }
 
-/* BUTTON EFFECT */
+/* --- Button --- */
 .login-btn {
     width: 100%;
-    padding: 14px;
+    padding: 16px;
     background-color: #1a1a1a;
     color: #ffffff;
     border: none;
     border-radius: 12px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
-    margin-top: 15px;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy hover */
+    margin-top: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .login-btn:hover {
     background-color: #000000;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.2);
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-    .image-section { display: none; }
-    .form-section { flex: 1; animation: none; }
-    .input-row { grid-template-columns: 1fr; }
+.login-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #718096;
+}
+
+.login-footer a {
+    color: #2ecc71;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+/* --- RESPONSIVE BREAKPOINTS --- */
+
+/* Laptops / Small Desktops */
+@media (max-width: 1100px) {
+    .image-section { flex: 1; }
+    .brand-overlay h1 { font-size: 40px; }
+}
+
+/* Tablets (Portrait) */
+@media (max-width: 850px) {
+    .image-section {
+        display: none; /* Hide image to prioritize the form */
+    }
+    
+    .form-section {
+        flex: 1;
+        padding: 60px 20px;
+    }
+}
+
+/* Mobile Devices */
+@media (max-width: 480px) {
+    .input-row {
+        grid-template-columns: 1fr; /* Stack fields like Username and Password */
+        gap: 0;
+    }
+
+    .form-section {
+        align-items: flex-start; /* Better for scrolling on long forms */
+    }
+
+    .login-card h2 {
+        font-size: 24px;
+    }
 }

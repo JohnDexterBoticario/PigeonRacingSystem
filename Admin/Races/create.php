@@ -127,72 +127,116 @@ include "../../Includes/sidebar.php";
 
 <script>
 /**
- * Initialize Select2 filters for searchable dropdowns
+ * Initialize Select2 on page load
  */
 $(document).ready(function() { 
-    initFilters($('.bird-entry-row')); 
+    $('.member-search, .bird-search').each(function() {
+        initSelect2($(this));
+    });
 });
 
-function initFilters(row) {
-    row.find('.member-search').select2({ placeholder: "-- Search Member --", width: '100%' });
-    row.find('.bird-search').select2({ placeholder: "-- Select Bird --", width: '100%' });
+/**
+ * Helper to initialize Select2
+ */
+function initSelect2(element) {
+    element.select2({
+        placeholder: element.hasClass('member-search') ? "-- Search Member --" : "-- Select Bird --",
+        width: '100%',
+        dropdownParent: $('body') 
+    });
 }
 
 /**
- * AJAX: Load birds associated with a specific member
+ * AJAX: Load ONLY the birds belonging to the selected member
  */
 function loadBirds(selectElement) {
     const userId = selectElement.value;
-    const pigeonSelect = $(selectElement).closest('.bird-entry-row').find('.pigeon-select');
+    const $row = $(selectElement).closest('.bird-entry-row');
+    const $pigeonSelect = $row.find('.pigeon-select');
     
+    // Clear the bird dropdown immediately when member changes
+    $pigeonSelect.empty().append(new Option('-- Select Bird --', '', true, true));
+
     if (userId) {
+        // Show a "Loading..." state in the bird dropdown
+        $pigeonSelect.append(new Option('Loading birds...', '', false, false));
+        $pigeonSelect.trigger('change');
+
         fetch(`get_member_birds.php?user_id=${userId}`)
             .then(response => response.json())
             .then(data => {
-                pigeonSelect.html('<option value="">-- Select Bird --</option>');
-                data.forEach(bird => {
-                    pigeonSelect.append(new Option(bird.ring_number, bird.id, false, false));
-                });
-                pigeonSelect.trigger('change');
+                // Clear "Loading..." and actual list
+                $pigeonSelect.empty();
+                $pigeonSelect.append(new Option('-- Select Bird --', '', true, true));
+
+                if (data.length > 0) {
+                    data.forEach(bird => {
+                        // Create option: Text is Ring Number, Value is Bird ID
+                        $pigeonSelect.append(new Option(bird.ring_number, bird.id, false, false));
+                    });
+                } else {
+                    $pigeonSelect.append(new Option('No birds registered for this member', '', false, false));
+                }
+                
+                // Refresh Select2 to show new data
+                $pigeonSelect.trigger('change');
+            })
+            .catch(error => {
+                console.error('Error fetching birds:', error);
+                $pigeonSelect.empty().append(new Option('Error loading birds', '', true, true)).trigger('change');
             });
+    } else {
+        $pigeonSelect.trigger('change');
     }
 }
 
 function addRow() {
     const container = $('#bird-entries-container');
-    // Select the first row to use as a template
-    const $templateRow = $('.bird-entry-row').first();
-    
-    // Create a clone
-    const $newRow = $templateRow.clone();
+    // We clone the very last row so it carries over the current Member selection
+    const $lastRow = $('.bird-entry-row').last();
+    const $newRow = $lastRow.clone();
 
-    // 1. Clean up Select2 artifacts (this is the most important part)
+    // 1. Clean up Select2 artifacts from the clone
     $newRow.find('.select2-container').remove(); 
-    $newRow.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').val("");
-    
-    // 2. Clear input values
-    $newRow.find('input').val("");
-    
-    // 3. Clear the pigeon dropdown options (so it doesn't show the previous member's birds)
-    $newRow.find('.pigeon-select').html('<option value="">-- Select Bird --</option>');
+    $newRow.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
 
-    // 4. Transform the Plus button into a Remove button
+    // 2. Clear ONLY the Bird and Sticker fields
+    // We keep the Member ID so the admin doesn't have to search for the same member again
+    $newRow.find('.pigeon-select').val(""); 
+    $newRow.find('input[name="sticker_codes[]"]').val("");
+
+    // 3. Transform the Plus button into a Red Minus (Remove) button
     const $btn = $newRow.find('button');
     $btn.html('<i class="fa-solid fa-minus"></i>')
-        .removeClass('btn-add-row')
-        .addClass('btn-remove-row')
-        .css('background-color', '#dc3545') // Red color for remove
+        .removeClass('btn-add-row').addClass('btn-remove-row')
+        .css('background-color', '#dc3545')
         .attr('onclick', '') 
         .off('click')
         .on('click', function() {
             $(this).closest('.bird-entry-row').remove();
         });
 
-    // 5. Append to container
+    // 4. Append to the container
     container.append($newRow);
 
-    // 6. Re-initialize Select2 on the new row
+    // 5. Re-initialize Select2 for the new row
     initFilters($newRow);
+    $('form').on('submit', function(e) {
+    let birds = [];
+    let duplicate = false;
+    $('.pigeon-select').each(function() {
+        let val = $(this).val();
+        if(val && birds.includes(val)) {
+            duplicate = true;
+        }
+        birds.push(val);
+    });
+
+    if(duplicate) {
+        alert("Error: You have selected the same bird twice!");
+        e.preventDefault();
+    }
+});
 }
 </script>
 

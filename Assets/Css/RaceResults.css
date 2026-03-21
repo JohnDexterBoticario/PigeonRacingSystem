@@ -1,0 +1,126 @@
+/* Race Results Specific Styles */
+:root {
+    --primary: #8a6b49;
+    --primary-dark: #765d3f;
+    --slate-800: #1e293b;
+    --slate-600: #475569;
+    --slate-400: #94a3b8;
+    --bg-body: #f1f5f9;
+    --white: #ffffff;
+}
+
+body {
+    background-color: var(--bg-body) !important;
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.main-content {
+    margin-left: 260px; /* Sidebar width */
+    padding: 2rem;
+}
+
+/* Report Card */
+.report-card {
+    background: var(--white);
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    max-width: 1000px;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+/* Header Section */
+.report-header {
+    text-align: center;
+    padding: 3rem 2rem;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.club-name {
+    color: var(--primary);
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+/* Stats Overview Grid */
+.stats-banner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #f8fafc;
+    margin: 2rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+}
+
+.stat-group {
+    padding: 1.5rem;
+}
+
+.stat-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.stat-label { color: var(--slate-600); font-weight: 500; }
+.stat-value { color: var(--slate-800); font-weight: 700; }
+
+/* Table Styling */
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.results-table th {
+    background: var(--slate-800);
+    color: white;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1rem;
+}
+
+.results-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.95rem;
+}
+
+.rank-text {
+    font-weight: 900;
+    font-size: 1.1rem;
+    color: var(--slate-800);
+}
+
+.ring-tag {
+    background: #eff6ff;
+    color: #1e40af;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.speed-text {
+    color: var(--primary);
+    font-weight: 800;
+}
+
+/* Print Specifics */
+@media print {
+    .no-print { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    .report-card { border: none !important; box-shadow: none !important; }
+    body { background: white !important; }
+    .results-table th { background: #333 !important; color: white !important; -webkit-print-color-adjust: exact; }
+}
+
+@media (max-width: 768px) {
+    .main-content { margin-left: 0; padding: 1rem; }
+    .stats-banner { grid-template-columns: 1fr; }
+}

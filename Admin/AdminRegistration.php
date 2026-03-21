@@ -7,10 +7,6 @@
 session_start();
 require_once "../Config/database.php"; 
 
-/**
- * Function: checkAdminAccess
- * Restricts access to this page to logged-in administrators only.
- */
 function checkAdminAccess() {
     if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
         header("Location: ../Auth/login.php");
@@ -19,17 +15,12 @@ function checkAdminAccess() {
 }
 checkAdminAccess();
 
-// Include Sidebar navigation
 include "../Includes/sidebar.php"; 
 
-/**
- * Logic: Handle Form Submission
- * Sanitizes input, validates data patterns, and performs a two-table database transaction.
- */
 if (isset($_POST['register'])) {
-    // 1. Sanitize and Collect Input
     $role       = $_POST['role'];
     $full_name  = htmlspecialchars(trim($_POST['full_name']));
+    $email      = htmlspecialchars(trim($_POST['email'])); // NEW
     $username   = htmlspecialchars(trim($_POST['username']));
     $password   = password_hash($_POST['password'], PASSWORD_DEFAULT); 
     $loft_name  = htmlspecialchars(trim($_POST['loft_name']));
@@ -37,44 +28,106 @@ if (isset($_POST['register'])) {
     $latitude   = $_POST['latitude'];
     $longitude  = $_POST['longitude'];
 
-    // 2. Data Validation
+    // 1. Data Validation
     if (!preg_match("/^[a-zA-Z\s]*$/", $full_name)) {
         $error = "Full Name can only contain letters and spaces.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) { // NEW
+        $error = "Please enter a valid email address.";
     } elseif (!preg_match("/^09[0-9]{9}$/", $phone)) {
         $error = "Phone number must be 11 digits starting with '09'.";
     } else {
-        // 3. Check for Existing Username
-        $checkUser = $conn->prepare("SELECT id FROM users WHERE username = ?");
-        $checkUser->bind_param("s", $username);
+        // 2. Check for Existing Username OR Email
+        $checkUser = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+        $checkUser->bind_param("ss", $username, $email);
         $checkUser->execute();
         
         if ($checkUser->get_result()->num_rows > 0) {
-            $error = "Username is already taken.";
+            $error = "Username or Email is already taken.";
         } else {
-            /**
-             * Database Transaction:
-             * Ensures that both the 'users' and 'members' records are created together.
-             * If one fails, neither are saved (Atomicity).
-             */
             $conn->begin_transaction();
             try {
-                // Insert core account credentials
-                $stmt = $conn->prepare("INSERT INTO users (role, full_name, username, password) VALUES (?, ?, ?, ?)");
-                $stmt->bind_param("ssss", $role, $full_name, $username, $password);
+                // 3. Insert into users (Added email and set is_verified to 1 by default for admin-created accounts)
+                $stmt = $conn->prepare("INSERT INTO users (role, full_name, email, username, password, is_verified) VALUES (?, ?, ?, ?, ?, 1)");
+                $stmt->bind_param("sssss", $role, $full_name, $email, $username, $password);
                 $stmt->execute();
 
                 $new_user_id = $conn->insert_id; 
 
-                // Insert profile and GPS data
+                // 4. Insert into members
                 $stmt2 = $conn->prepare("INSERT INTO members (user_id, loft_name, phone, latitude, longitude) VALUES (?, ?, ?, ?, ?)");
                 $stmt2->bind_param("issss", $new_user_id, $loft_name, $phone, $latitude, $longitude);
                 $stmt2->execute();
 
+            // --- Inside your try block, after $stmt2->execute() ---
+
+                // Log the activity
+                $admin_id = $_SESSION['user_id']; 
+                $log_details = "Registered new $role: $full_name (Username: $username)";
+                // logActivity($conn, $admin_id, "User Registration", $log_details); 
+
+                // Commit the transaction
                 $conn->commit();
-                echo "<script>alert('Registration successful!'); window.location.href='AdminDashboard.php';</script>";
+
+                // Show Success Modal
+                echo "
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>
+                    <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap' rel='stylesheet'>
+                    <style>
+                        .swal2-popup { 
+                            font-family: 'Plus Jakarta Sans', sans-serif !important; 
+                            border-radius: 20px !important; 
+                            padding: 2rem !important;
+                        }
+                        .swal2-title { font-weight: 800 !important; color: #1a1a1a !important; }
+                    </style>
+                </head>
+                <body>
+                    <script>
+                        Swal.fire({
+                            title: 'Registration Successful!',
+                            text: 'The new account for $full_name has been created.',
+                            icon: 'success',
+                            confirmButtonColor: '#2ecc71',
+                            confirmButtonText: 'GO TO DASHBOARD',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.href = 'AdminDashboard.php';
+                            }
+                        });
+                    </script>
+                </body>
+                </html>";
+                exit();
+
             } catch (Exception $e) {
                 $conn->rollback();
-                $error = "Registration failed: " . $e->getMessage();
+                // Show Error Modal if the database or mail fails
+                echo "
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>
+                    <link href='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap' rel='stylesheet'>
+                    <style>
+                        .swal2-popup { font-family: 'Plus Jakarta Sans', sans-serif !important; border-radius: 20px !important; }
+                    </style>
+                </head>
+                <body>
+                    <script>
+                        Swal.fire({
+                            title: 'Registration Failed',
+                            text: '" . addslashes($e->getMessage()) . "',
+                            icon: 'error',
+                            confirmButtonColor: '#e53e3e',
+                            confirmButtonText: 'BACK TO FORM'
+                        });
+                    </script>
+                </body>
+                </html>";
             }
         }
     }
@@ -87,10 +140,8 @@ if (isset($_POST['register'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register Member - Pigeon Racing System</title>
-    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <link rel="stylesheet" href="../Assets/Css/Registration.css">
 </head>
 <body>
@@ -123,6 +174,14 @@ if (isset($_POST['register'])) {
                     <div class="input-with-icon">
                         <i class="fa fa-id-card"></i>
                         <input type="text" name="full_name" placeholder="Juan Dela Cruz" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <div class="input-with-icon">
+                        <i class="fa fa-envelope"></i>
+                        <input type="email" name="email" placeholder="dexter@example.com" required>
                     </div>
                 </div>
 
@@ -195,10 +254,6 @@ if (isset($_POST['register'])) {
 </div>
 
 <script>
-/**
- * Function: getLocation
- * Uses the browser's Geolocation API to fetch precise loft coordinates.
- */
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -212,15 +267,13 @@ function getLocation() {
     }
 }
 
-/**
- * Logic: Input Masking
- * Restricts the phone input field to numbers only.
- */
 document.addEventListener("DOMContentLoaded", function() {
     const phoneInput = document.getElementById('phone');
-    phoneInput.addEventListener("input", function() {
-        this.value = this.value.replace(/\D/g, '').substring(0, 11);
-    });
+    if(phoneInput) {
+        phoneInput.addEventListener("input", function() {
+            this.value = this.value.replace(/\D/g, '').substring(0, 11);
+        });
+    }
 });
 </script>
 

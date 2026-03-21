@@ -87,172 +87,116 @@ include "../Includes/sidebar.php";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Race Results - <?= htmlspecialchars($clubName) ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../Assets/Css/nav.css">
+    <link rel="stylesheet" href="../Assets/Css/RaceResults.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body {
-            background: linear-gradient(45deg, #00dbde 0%, #fc00ff 100%);
-            min-height: 100vh;
-        }
-        .custom-card {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        }
-        .status-badge {
-            background-color: #f1f5f9;
-            color: #8a6b49;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            font-weight: 700;
-            border: 1px solid #e2e8f0;
-        }
-        .ring-badge {
-            background: #2c3e50;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-        @media print {
-            body { background: white !important; }
-            .no-print { display: none !important; }
-            .custom-card { box-shadow: none !important; border: 1px solid #eee; padding: 20px !important; }
-            .main-content { margin-left: 0 !important; }
-        }
-    </style>
 </head>
-<body class="font-sans antialiased text-slate-800">
+<body>
 
-<div class="md:ml-64 p-4 md:p-8 main-content">
-    <div class="max-w-6xl mx-auto space-y-6">
+<div class="main-content">
+    
+    <div class="report-card no-print" style="padding: 1rem 2rem; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+        <div style="font-weight: 800; color: var(--slate-600); text-transform: uppercase; font-size: 0.8rem;">
+            <i class="fa-solid fa-trophy"></i> Race Archives
+        </div>
         
-        <!-- Filter Bar -->
-        <div class="custom-card p-4 px-8 no-print flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-3 text-[#8a6b49] font-bold uppercase tracking-wider">
-                <i class="fa-solid fa-trophy"></i> 
-                Race History
+        <div style="display: flex; gap: 10px;">
+            <form method="GET">
+                <select name="race_id" onchange="this.form.submit()" 
+                        style="padding: 8px 15px; border-radius: 20px; border: 1px solid #ddd; font-weight: 600; cursor: pointer;">
+                    <?php foreach ($races_list as $r): ?>
+                        <option value="<?= $r['id'] ?>" <?= $selected_race_id == $r['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($r['race_name']) ?> (<?= date('M d', strtotime($r['release_datetime'])) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+            <button onclick="window.print()" style="background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-weight: 700; cursor: pointer;">
+                <i class="fa-solid fa-print"></i> PRINT
+            </button>
+        </div>
+    </div>
+
+    <div class="report-card">
+        <header class="report-header">
+            <h1 class="club-name"><?= htmlspecialchars($clubName) ?></h1>
+            <div style="font-weight: 700; color: var(--slate-800); font-size: 1.2rem; margin-top: 10px;">
+                OFFICIAL RACE RESULT
             </div>
-            
-            <div class="flex flex-wrap items-center gap-3">
-                <form method="GET" class="flex items-center">
-                    <select name="race_id" onchange="this.form.submit()" 
-                            class="bg-slate-50 border border-slate-200 rounded-full px-4 py-2 text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-[#8a6b49]">
-                        <?php if(empty($races_list)): ?>
-                            <option value="">No races available</option>
-                        <?php else: ?>
-                            <?php foreach ($races_list as $r): ?>
-                                <option value="<?= $r['id'] ?>" <?= $selected_race_id == $r['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($r['race_name'] ?? 'Untitled Race') ?> (<?= date('M d, Y', strtotime($r['release_datetime'] ?? 'now')) ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </select>
-                </form>
-                
-                <button onclick="window.print()" class="bg-[#8a6b49] hover:bg-[#765d3f] text-white px-5 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all">
-                    <i class="fa-solid fa-file-export"></i> Export Result
-                </button>
+            <div style="color: var(--slate-400); font-size: 0.9rem; margin-top: 5px;">
+                Race Date: <?= date('F j, Y', strtotime($activeRaceInfo['release_datetime'])) ?>
+            </div>
+        </header>
+
+        <div class="stats-banner">
+            <div class="stat-group" style="border-right: 1px solid #e2e8f0;">
+                <div class="stat-line">
+                    <span class="stat-label">Release Point</span>
+                    <span class="stat-value"><?= htmlspecialchars($activeRaceInfo['release_point']) ?></span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Release Time</span>
+                    <span class="stat-value"><?= date('h:i:s A', strtotime($activeRaceInfo['release_datetime'])) ?></span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Weather</span>
+                    <span class="stat-value"><?= htmlspecialchars($activeRaceInfo['weather']) ?></span>
+                </div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-line">
+                    <span class="stat-label">Total Entry</span>
+                    <span class="stat-value"><?= $totalEntriesCount ?> Birds</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Total Arrived</span>
+                    <span class="stat-value"><?= $totalArrivedCount ?> Birds</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Winning Speed</span>
+                    <span class="stat-value" style="color: var(--primary);">
+                        <?= !empty($raceLeaderboard) ? number_format($raceLeaderboard[0]['speed_mpm'], 2) : '0.00' ?> MPM
+                    </span>
+                </div>
             </div>
         </div>
 
-        <!-- Official Result Report -->
-        <div class="custom-card p-8 md:p-12" id="printArea">
-            <div class="text-center border-b-2 border-slate-100 pb-8 mb-8">
-                <h1 class="text-3xl font-black text-[#8a6b49] uppercase tracking-tighter mb-1">
-                    <?= htmlspecialchars($clubName) ?>
-                </h1>
-                <div class="flex items-center justify-center gap-3 mb-2">
-                    <h2 class="text-xl font-bold text-slate-800">Official Race Result</h2>
-                    <span class="status-badge"><?= htmlspecialchars($activeRaceInfo['status'] ?? 'Unknown') ?></span>
-                </div>
-                <p class="text-slate-400 font-medium">
-                    Race Date: <strong class="text-slate-600"><?= date('F j, Y', strtotime($activeRaceInfo['release_datetime'] ?? 'now')) ?></strong>
-                </p>
-            </div>
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Ring Number</th>
+                    <th>Owner / Loft</th>
+                    <th>Distance</th>
+                    <th>Arrival</th>
+                    <th>Speed (MPM)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if(!empty($raceLeaderboard)): ?>
+                    <?php foreach ($raceLeaderboard as $row): ?>
+                    <tr>
+                        <td class="rank-text">#<?= $row['rank'] ?></td>
+                        <td><span class="ring-tag"><?= htmlspecialchars($row['ring_number']) ?></span></td>
+                        <td style="font-weight: 600;"><?= htmlspecialchars($row['loft_name']) ?></td>
+                        <td><?= number_format($row['distance_km'], 3) ?> km</td>
+                        <td><?= date('H:i:s', strtotime($row['arrival_time'])) ?></td>
+                        <td class="speed-text"><?= number_format($row['speed_mpm'], 2) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 50px; color: var(--slate-400);">
+                            No bird standings available for this race.
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
 
-            <!-- Stats Overview -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                <div class="space-y-3">
-                    <div class="flex items-center gap-3 text-slate-600">
-                        <span class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-[#8a6b49]">📍</span>
-                        <span class="font-medium text-sm">Release Point:</span>
-                        <span class="font-bold text-slate-800"><?= htmlspecialchars($activeRaceInfo['release_point'] ?? 'N/A') ?></span>
-                    </div>
-                    <div class="flex items-center gap-3 text-slate-600">
-                        <span class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-[#8a6b49]">⏰</span>
-                        <span class="font-medium text-sm">Time Release:</span>
-                        <span class="font-bold text-slate-800"><?= date('h:i:s A', strtotime($activeRaceInfo['release_datetime'] ?? 'now')) ?></span>
-                    </div>
-                    <div class="flex items-center gap-3 text-slate-600">
-                        <span class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-[#8a6b49]">🌤</span>
-                        <span class="font-medium text-sm">Weather:</span>
-                        <span class="font-bold text-slate-800"><?= htmlspecialchars($activeRaceInfo['weather'] ?? 'Clear Skies') ?></span>
-                    </div>
-                </div>
-                <div class="md:border-l border-slate-200 md:pl-10 space-y-3">
-                    <div class="flex items-center gap-3 text-slate-600">
-                        <span class="font-medium text-sm">📊 Total Entry:</span>
-                        <span class="font-bold text-slate-800"><?= (int)$totalEntriesCount ?> Birds</span>
-                    </div>
-                    <div class="flex items-center gap-3 text-slate-600">
-                        <span class="font-medium text-sm">✅ Total Arrived:</span>
-                        <span class="font-bold text-slate-800"><?= (int)$totalArrivedCount ?> Birds</span>
-                    </div>
-                    <div class="flex items-center gap-3 text-slate-600">
-                        <span class="font-medium text-sm">📉 Min. Speed:</span>
-                        <span class="font-bold text-slate-800">
-                            <?= !empty($raceLeaderboard) ? number_format((float)end($raceLeaderboard)['speed_mpm'], 2) . ' MPM' : '0.00 MPM' ?>
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Leaderboard Table -->
-            <div class="overflow-x-auto rounded-xl border border-slate-100">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-800 text-white">
-                            <th class="px-6 py-4 font-bold text-xs uppercase tracking-wider">Rank</th>
-                            <th class="px-6 py-4 font-bold text-xs uppercase tracking-wider">Ring Number</th>
-                            <th class="px-6 py-4 font-bold text-xs uppercase tracking-wider">Owner / Loft</th>
-                            <th class="px-6 py-4 font-bold text-xs uppercase tracking-wider">Distance (KM)</th>
-                            <th class="px-6 py-4 font-bold text-xs uppercase tracking-wider">Arrival Time</th>
-                            <th class="px-6 py-4 font-bold text-xs uppercase tracking-wider">Speed (MPM)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
-                        <?php if(!empty($raceLeaderboard)): ?>
-                            <?php foreach ($raceLeaderboard as $row): ?>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4 text-xl font-black text-slate-800">#<?= $row['rank'] ?></td>
-                                <td class="px-6 py-4"><span class="ring-badge"><?= htmlspecialchars($row['ring_number'] ?? 'N/A') ?></span></td>
-                                <td class="px-6 py-4 font-bold text-slate-700"><?= htmlspecialchars($row['loft_name'] ?? 'Unknown') ?></td>
-                                <td class="px-6 py-4 text-slate-600 font-medium"><?= number_format((float)($row['distance_km'] ?? 0), 3) ?></td>
-                                <td class="px-6 py-4 text-slate-500 font-mono text-sm"><?= date('H:i:s', strtotime($row['arrival_time'] ?? 'now')) ?></td>
-                                <td class="px-6 py-4 text-lg font-bold text-[#8a6b49]"><?= number_format((float)($row['speed_mpm'] ?? 0), 2) ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="6" class="px-6 py-16 text-center text-slate-400 italic font-medium">
-                                    No bird standings available for this race yet.
-                                </td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Footer (Print Only) -->
-            <div class="mt-12 text-center text-slate-300 text-[10px] font-bold uppercase tracking-[0.2em]">
-                Generated by Pigeon Racing System © <?= date('Y') ?>
-            </div>
-        </div>
+        <footer style="padding: 2rem; text-align: center; color: var(--slate-400); font-size: 0.7rem; letter-spacing: 0.1em;">
+            GENERATED BY PIGEON RACING SYSTEM &copy; <?= date('Y') ?>
+        </footer>
     </div>
 </div>
 

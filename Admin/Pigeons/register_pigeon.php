@@ -1,10 +1,10 @@
 <?php
 /**
- * Pigeon & Race Entry Management - Optimized
+ * Pigeon & Race Entry Management - Restructured & Fixed
  */
 session_start();
 
-// 1. SECURITY: Role Check & CSRF Token Generation
+// 1. SECURITY: Role Check & CSRF
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../../Auth/login.php");
     exit();
@@ -24,27 +24,51 @@ $error_msg = "";
  * 2. ACTION HANDLERS
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF Validation
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
         die("CSRF token validation failed.");
     }
 
-    // --- HANDLE NEW PIGEON REGISTRATION ---
+    // --- HANDLE BATCH PIGEON REGISTRATION ---
     if (isset($_POST['register_pigeon'])) {
         $member_id = $_POST['member_id'] ?? null;
         $year = filter_input(INPUT_POST, 'year', FILTER_SANITIZE_NUMBER_INT);
-        $ring_number = strtoupper(trim($_POST['ring_number'] ?? ''));
+        $category = $_POST['category'] ?? 'Young Bird';
+        $ring_numbers = $_POST['ring_numbers'] ?? []; 
 
-        if (!$member_id || !$year || !$ring_number) {
-            $error_msg = "All fields are required.";
+        if (!$member_id || !$year || empty($ring_numbers)) {
+            $error_msg = "Owner, Year, and at least one Ring Number are required.";
         } else {
             try {
-                $stmt = $conn->prepare("INSERT INTO pigeons (member_id, ring_number, year, category) VALUES (?, ?, ?, 'Young Bird')");
-                $stmt->bind_param("iss", $member_id, $ring_number, $year);
-                $stmt->execute();
-                $success_msg = "Pigeon $ring_number registered successfully!";
+                $stmt = $conn->prepare("INSERT INTO pigeons (member_id, ring_number, year, category) VALUES (?, ?, ?, ?)");
+                
+                $registered_count = 0;
+                $rings_logged = []; 
+
+                foreach ($ring_numbers as $ring) {
+                    $ring = strtoupper(trim($ring));
+                    if (!empty($ring)) {
+                        $stmt->bind_param("isss", $member_id, $ring, $year, $category);
+                        $stmt->execute();
+                        $registered_count++;
+                        $rings_logged[] = $ring;
+                    }
+                }
+
+                if ($registered_count > 0) {
+                    $success_msg = "Successfully registered $registered_count bird(s)!";
+
+                    // LOGGING LOGIC
+                    $log_user_id = $_SESSION['user_id']; 
+                    $log_action = "Pigeon Registration";
+                    $log_details = "Registered $registered_count birds: " . implode(", ", $rings_logged) . " for member ID: " . $member_id;
+
+                    $log_stmt = $conn->prepare("INSERT INTO system_logs (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())");
+                    $log_stmt->bind_param("iss", $log_user_id, $log_action, $log_details);
+                    $log_stmt->execute();
+                }
+
             } catch (mysqli_sql_exception $e) {
-                $error_msg = ($e->getCode() == 1062) ? "Error: Ring number already exists." : "Database Error.";
+                $error_msg = ($e->getCode() == 1062) ? "Error: One or more ring numbers already exist." : "Database Error: " . $e->getMessage();
             }
         }
     }
@@ -58,18 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error_msg = "Select a race and at least one bird.";
         } else {
             try {
-                // Fetch race distance once
                 $dist_stmt = $conn->prepare("SELECT distance_km FROM races WHERE id = ?");
                 $dist_stmt->bind_param("i", $race_id);
                 $dist_stmt->execute();
                 $race_dist = $dist_stmt->get_result()->fetch_assoc()['distance_km'] ?? 0;
 
-                // Optimization: Use a single query for multiple inserts
-                // 'INSERT IGNORE' skips duplicates automatically if you have a UNIQUE constraint on (race_id, pigeon_id)
-                $values = [];
-                $types = "";
-                $params = [];
-                
+                $values = []; $types = ""; $params = [];
                 foreach ($pigeon_ids as $p_id) {
                     $values[] = "(?, ?, ?)";
                     $types .= "iid";
@@ -77,11 +95,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 $query = "INSERT IGNORE INTO race_entries (race_id, pigeon_id, distance_km) VALUES " . implode(',', $values);
-                $stmt = $conn->prepare($query);
-                $stmt->bind_param($types, ...$params);
-                $stmt->execute();
+                $stmt_entry = $conn->prepare($query);
+                $stmt_entry->bind_param($types, ...$params);
                 
-                $success_msg = count($pigeon_ids) . " birds processed for the race.";
+                if ($stmt_entry->execute()) {
+                    $count = count($pigeon_ids);
+                    $success_msg = "$count birds processed for the race.";
+
+                    // LOGGING LOGIC FOR RACE ENTRY
+                    $log_user_id = $_SESSION['user_id']; 
+                    $log_action = "Race Assignment";
+                    $log_details = "Assigned $count birds to Race ID: $race_id";
+
+                    $log_stmt = $conn->prepare("INSERT INTO system_logs (user_id, action, details, created_at) VALUES (?, ?, ?, NOW())");
+                    $log_stmt->bind_param("iss", $log_user_id, $log_action, $log_details);
+                    $log_stmt->execute();
+                }
             } catch (Exception $e) {
                 $error_msg = "Entry Error: " . $e->getMessage();
             }
@@ -90,16 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /**
- * 3. DATA FETCHING (Using optimized queries)
+ * 3. DATA FETCHING
  */
 $members = $conn->query("SELECT m.id, u.full_name, m.loft_name FROM members m JOIN users u ON m.user_id = u.id ORDER BY u.full_name ASC")->fetch_all(MYSQLI_ASSOC);
 $races = $conn->query("SELECT id, race_name, status FROM races WHERE status != 'Completed' ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
-$pigeons = $conn->query("
-    SELECT p.id, p.ring_number, m.loft_name 
-    FROM pigeons p 
-    JOIN members m ON p.member_id = m.id 
-    ORDER BY p.ring_number ASC
-")->fetch_all(MYSQLI_ASSOC);
+$pigeons = $conn->query("SELECT p.id, p.ring_number, m.loft_name FROM pigeons p JOIN members m ON p.member_id = m.id ORDER BY p.ring_number ASC")->fetch_all(MYSQLI_ASSOC);
 
 include "../../Includes/sidebar.php"; 
 ?>
@@ -128,6 +152,11 @@ include "../../Includes/sidebar.php";
                 <i class="fa-solid fa-check-circle mr-2"></i> <?= $success_msg ?>
             </div>
         <?php endif; ?>
+        <?php if($error_msg): ?>
+            <div class="p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-700 rounded shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation mr-2"></i> <?= $error_msg ?>
+            </div>
+        <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
@@ -139,31 +168,40 @@ include "../../Includes/sidebar.php";
                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                     
                     <div>
-    <label class="block text-sm font-medium text-slate-600 mb-1">Search & Select Owner</label>
-    <div class="relative">
-        <input type="text" id="memberSearchInput" placeholder="Type name or loft..." 
-               class="w-full p-2.5 mb-2 border rounded-lg focus:ring-2 focus:ring-sky-500 outline-none text-sm">
-        
-        <select name="member_id" id="memberSelect" required 
-                class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
-            <option value="">-- Select Member --</option>
-            <?php foreach($members as $m): ?>
-                <option value="<?= $m['id'] ?>" data-search="<?= strtolower(htmlspecialchars($m['full_name'] . ' ' . $m['loft_name'])) ?>">
-                    <?= htmlspecialchars($m['full_name']) ?> (<?= htmlspecialchars($m['loft_name']) ?>)
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </div>
-</div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Search & Select Owner</label>
+                        <input type="text" id="memberSearchInput" placeholder="Type name or loft..." class="w-full p-2.5 mb-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-sky-500">
+                        <select name="member_id" id="memberSelect" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="">-- Select Member --</option>
+                            <?php foreach($members as $m): ?>
+                                <option value="<?= $m['id'] ?>" data-search="<?= strtolower(htmlspecialchars($m['full_name'] . ' ' . $m['loft_name'])) ?>">
+                                    <?= htmlspecialchars($m['full_name']) ?> (<?= htmlspecialchars($m['loft_name']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">Year</label>
-                            <input type="number" name="year" value="<?= date('Y') ?>" class="w-full p-2.5 border rounded-lg">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Category</label>
+                            <select name="category" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="Young Bird">Young Bird</option>
+                                <option value="Old Bird">Old Bird</option>
+                                <option value="Off Color">Off Color</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">Ring Number</label>
-                            <input type="text" name="ring_number" required class="w-full p-2.5 border rounded-lg" placeholder="EX: 2026-123">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Year</label>
+                            <input type="number" name="year" value="<?= date('Y') ?>" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                    </div>
+
+                    <div id="ring-container" class="space-y-2">
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Ring Number(s)</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="ring_numbers[]" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="EX: 2026-123">
+                            <button type="button" onclick="addRingField()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 rounded-lg transition-colors">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -179,19 +217,16 @@ include "../../Includes/sidebar.php";
                 </h2>
                 <form method="POST" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                    
-                    <div>
-                        <select name="race_id" required class="w-full p-2.5 border rounded-lg mb-4">
-                            <option value="">-- Select Active Race --</option>
-                            <?php foreach($races as $r): ?>
-                                <option value="<?= $r['id'] ?>"><?= htmlspecialchars($r['race_name']) ?> (<?= $r['status'] ?>)</option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <select name="race_id" required class="w-full p-2.5 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-rose-500">
+                        <option value="">-- Select Active Race --</option>
+                        <?php foreach($races as $r): ?>
+                            <option value="<?= $r['id'] ?>"><?= htmlspecialchars($r['race_name']) ?> (<?= $r['status'] ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
 
                     <div class="border rounded-lg overflow-hidden">
                         <div class="bg-slate-50 p-2 border-b flex justify-between items-center">
-                            <input type="text" id="pigeonSearch" placeholder="Filter birds..." class="text-sm p-1 border rounded w-1/2">
+                            <input type="text" id="pigeonSearch" placeholder="Filter birds..." class="text-sm p-1 border rounded w-1/2 outline-none">
                             <button type="button" onclick="toggleAllPigeons()" class="text-xs text-sky-600 font-bold uppercase">Select All</button>
                         </div>
                         <div id="pigeonList" class="max-h-60 overflow-y-auto p-2 custom-scrollbar grid grid-cols-1 gap-1">
@@ -212,53 +247,49 @@ include "../../Includes/sidebar.php";
                     </button>
                 </form>
             </div>
-
         </div>
     </div>
 </div>
 
 <script>
-    // Improved search filter
+    // Handle dynamic ring fields
+    function addRingField() {
+        const container = document.getElementById('ring-container');
+        const div = document.createElement('div');
+        div.className = "flex gap-2 mt-2";
+        div.innerHTML = `
+            <input type="text" name="ring_numbers[]" required class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Next Ring...">
+            <button type="button" onclick="this.parentElement.remove()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 rounded-lg transition-colors">
+                <i class="fa-solid fa-minus"></i>
+            </button>`;
+        container.appendChild(div);
+    }
+
+    // Owner search
+    document.getElementById('memberSearchInput').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        const options = document.getElementById('memberSelect').options;
+        for (let i = 1; i < options.length; i++) {
+            const searchAttr = options[i].getAttribute('data-search');
+            options[i].style.display = searchAttr.includes(term) ? "" : "none";
+        }
+    });
+
+    // Pigeon filter
     document.getElementById('pigeonSearch').addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
         document.querySelectorAll('.pigeon-item').forEach(item => {
-            const text = item.textContent.toLowerCase();
-            item.style.display = text.includes(term) ? 'flex' : 'none';
+            item.style.display = item.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
         });
     });
 
-    // Select all helper
     function toggleAllPigeons() {
         const checkboxes = document.querySelectorAll('input[name="pigeon_ids[]"]');
-        const firstValue = checkboxes[0].checked;
+        const allChecked = Array.from(checkboxes).every(c => c.checked);
         checkboxes.forEach(cb => {
-            if (cb.closest('.pigeon-item').style.display !== 'none') {
-                cb.checked = !firstValue;
-            }
+            if (cb.closest('.pigeon-item').style.display !== 'none') cb.checked = !allChecked;
         });
     }
-    // Search filter for Member Dropdown
-document.getElementById('memberSearchInput').addEventListener('input', function(e) {
-    const term = e.target.value.toLowerCase();
-    const select = document.getElementById('memberSelect');
-    const options = select.options;
-    let firstVisibleMatch = null;
-
-    for (let i = 1; i < options.length; i++) {
-        const searchText = options[i].getAttribute('data-search');
-        if (searchText.includes(term)) {
-            options[i].style.display = ""; // Show
-            if (!firstVisibleMatch) firstVisibleMatch = options[i];
-        } else {
-            options[i].style.display = "none"; // Hide
-        }
-    }
-
-    // Optional: Auto-select the first match if the user is typing
-    if (term.length > 2 && firstVisibleMatch) {
-        // select.value = firstVisibleMatch.value; // Uncomment to auto-select
-    }
-});
 </script>
 </body>
 </html>

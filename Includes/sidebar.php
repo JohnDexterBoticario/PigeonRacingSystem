@@ -36,7 +36,6 @@ if ($has_active_race && $role === 'admin') {
 ?>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<link rel="stylesheet" href="/pigeon-racing-system/Assets/Css/nav.css">
 <link rel="stylesheet" href="/pigeon-racing-system/Assets/Css/sidebar.css">
 
 <div class="sidebar">
@@ -46,9 +45,10 @@ if ($has_active_race && $role === 'admin') {
     </div>
     
     <div class="user-info">
-        <p>Welcome, <strong><?php echo htmlspecialchars($fullName); ?></strong></p>
-        <span class="role-badge"><?php echo ucfirst($role); ?></span>
-    </div>
+    <div class="welcome-text">Welcome,</div>
+    <div class="user-name"><?php echo htmlspecialchars($fullName); ?></div>
+    <span class="role-badge"><?php echo strtoupper($role); ?></span>
+</div>
 
     <div class="sidebar-search-container">
         <div class="search-wrapper">
@@ -89,46 +89,101 @@ if ($has_active_race && $role === 'admin') {
             <a href="/pigeon-racing-system/Admin/logs.php"><i class="fa-solid fa-list-ul"></i> System Logs</a>
         <?php endif; ?>
 
-        <a href="/pigeon-racing-system/Auth/logout.php" class="nav-link logout-link" onclick="return confirm('Are you sure you want to log out?')">
-            <i class="fa-solid fa-right-from-bracket"></i> Logout
-        </a>
+        <a href="javascript:void(0)" onclick="confirmLogout()" class="nav-link logout-btn">
+    <i class="fa-solid fa-right-from-bracket"></i>
+    <span>Logout</span>
+</a>
     </nav>
 </div>
 
-<script>
-// Logic for Member Search Modal
-const searchInput = document.getElementById('memberSidebarSearch');
-const modal = document.getElementById('searchModal');
-const resultsList = document.getElementById('modalResultsList');
-const closeModal = document.getElementById('closeModal');
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-searchInput.addEventListener('input', function() {
-    let query = this.value;
-    if (query.length > 0) {
-        fetch(`/pigeon-racing-system/Admin/search_handler.php?query=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                modal.style.display = "block";
-                resultsList.innerHTML = ''; 
-                if (data.length > 0) {
-                    data.forEach(member => {
-                        let item = document.createElement('div');
-                        item.className = "search-result-item";
-                        item.innerHTML = `
-                            <div>
-                                <strong class="result-name">${member.full_name} (@${member.username})</strong><br>
-                                <small class="result-meta">Loft: ${member.loft_name} | ID: ${member.member_id} | Phone: ${member.phone}</small>
-                            </div>
-                            <i class="fa-solid fa-chevron-right" style="color: #7f8c8d;"></i>`;
-                        item.onclick = () => window.location.href = `/pigeon-racing-system/Admin/members.php?search=${encodeURIComponent(member.full_name)}`;
-                        resultsList.appendChild(item);
+<style>
+    /* Ensure the font matches your brand */
+    .centered-logout-modal {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        border-radius: 24px !important;
+        padding: 2rem !important;
+    }
+    .jakarta-font {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+    }
+</style>
+
+<script>
+// --- Logout Logic ---
+function confirmLogout() {
+    Swal.fire({
+        title: 'Ready to Leave?',
+        text: "Are you sure you want to end your session?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2ecc71', // Your Emerald Green
+        cancelButtonColor: '#718096', // Slate Gray
+        confirmButtonText: 'YES, LOGOUT',
+        cancelButtonText: 'CANCEL',
+        reverseButtons: true,
+        customClass: {
+            popup: 'centered-logout-modal',
+            title: 'jakarta-font',
+            content: 'jakarta-font'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = '../Auth/logout.php'; 
+        }
+    });
+}
+
+// --- Logic for Member Search Modal ---
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('memberSidebarSearch');
+    const modal = document.getElementById('searchModal');
+    const resultsList = document.getElementById('modalResultsList');
+    const closeModal = document.getElementById('closeModal');
+
+    // Only run if the elements exist on the page
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            let query = this.value;
+            if (query.length > 0) {
+                fetch(`/pigeon-racing-system/Admin/search_handler.php?query=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        modal.style.display = "block";
+                        resultsList.innerHTML = ''; 
+                        if (data.length > 0) {
+                            data.forEach(member => {
+                                let item = document.createElement('div');
+                                item.className = "search-result-item text-start p-3 border-bottom";
+                                item.style.cursor = "pointer";
+                                item.innerHTML = `
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong class="result-name">${member.full_name} (@${member.username})</strong><br>
+                                            <small class="result-meta text-muted">Loft: ${member.loft_name} | ID: ${member.member_id}</small>
+                                        </div>
+                                        <i class="fa-solid fa-chevron-right text-secondary"></i>
+                                    </div>`;
+                                item.onclick = () => window.location.href = `/pigeon-racing-system/Admin/Add_members.php?search=${encodeURIComponent(member.full_name)}`;
+                                resultsList.appendChild(item);
+                            });
+                        } else {
+                            resultsList.innerHTML = '<p class="py-4 text-center text-muted">No matches found.</p>';
+                        }
                     });
-                } else {
-                    resultsList.innerHTML = '<p class="no-races-text" style="text-align:center;">No matches found.</p>';
-                }
-            });
-    } else { modal.style.display = "none"; }
+            } else { 
+                modal.style.display = "none"; 
+            }
+        });
+    }
+
+    if (closeModal) {
+        closeModal.onclick = () => modal.style.display = "none";
+    }
+
+    window.onclick = (e) => { 
+        if (e.target == modal) modal.style.display = "none"; 
+    };
 });
-closeModal.onclick = () => modal.style.display = "none";
-window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 </script>
